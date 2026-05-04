@@ -63,7 +63,8 @@ public class LightEditorController : Editor {
     } 
 
     private void ColorSwitchVariablesUI() {
-        if(lightController.ColorSwitch)
+        bool showHorizontal = lightController.ColorSwitch;
+        if(showHorizontal)
             EditorGUILayout.BeginHorizontal();  // Button "Show" and Checkbox
 
         if(!lightController.ColorGradient) {
@@ -74,7 +75,7 @@ public class LightEditorController : Editor {
             GUI.enabled = true; // enable all variables from now on again
         }
             
-        if(lightController.ColorSwitch) {
+        if(showHorizontal) {
             if(GUILayout.Button(colorSwitchUIData.text)) {  // Draw Button for Variables
                 colorSwitchUIData.isVisible = !colorSwitchUIData.isVisible;
                 colorSwitchUIData.text = colorSwitchUIData.isVisible ?
@@ -91,7 +92,8 @@ public class LightEditorController : Editor {
     }
 
     private void ColorGradientVariablesUI() {
-        if(lightController.ColorGradient)
+        bool showHorizontal = lightController.ColorGradient;
+        if(showHorizontal)
             EditorGUILayout.BeginHorizontal();  // Button "Show" and Checkbox
 
         if(!lightController.ColorSwitch) {
@@ -102,7 +104,7 @@ public class LightEditorController : Editor {
             GUI.enabled = true; // enable all variables from now on again
         }
             
-        if(lightController.ColorGradient) {
+        if(showHorizontal) {
             if(GUILayout.Button(colorGradientUIData.text)) {  // Draw Button for Variables
                 colorGradientUIData.isVisible = !colorGradientUIData.isVisible;
                 colorGradientUIData.text = colorGradientUIData.isVisible ?
@@ -119,11 +121,12 @@ public class LightEditorController : Editor {
     }
 
     private void SmoothIntensityVariablesUI() {
-        if(lightController.SmoothIntensity)
+        bool showHorizontal = lightController.SmoothIntensity;
+        if(showHorizontal)
             EditorGUILayout.BeginHorizontal();  // Button "Show" and Checkbox
         EditorGUILayout.PropertyField(serializedObject.FindProperty("SmoothIntensity"));
 
-        if(lightController.SmoothIntensity) {
+        if(showHorizontal) {
             if(GUILayout.Button(smmothIntensityUIData.text)) {  // Draw Button for Variables
                 smmothIntensityUIData.isVisible = !smmothIntensityUIData.isVisible;
                 smmothIntensityUIData.text = smmothIntensityUIData.isVisible ?
@@ -139,12 +142,13 @@ public class LightEditorController : Editor {
         }
     }
     private void SmoothSwitchingVariablesUI() {
-        if(lightController.SmoothSwitching)
+        bool showHorizontal = lightController.SmoothSwitching;
+        if(showHorizontal)
             EditorGUILayout.BeginHorizontal();  // Button "Show" and Checkbox
 
         EditorGUILayout.PropertyField(serializedObject.FindProperty("SmoothSwitching")); // Draw the CheckBox
 
-        if(lightController.SmoothSwitching) {
+        if(showHorizontal) {
             if(GUILayout.Button(smoothSwitchingUIData.text)) {  // Draw Button for Variables
                 smoothSwitchingUIData.isVisible = !smoothSwitchingUIData.isVisible;
                 smoothSwitchingUIData.text = smoothSwitchingUIData.isVisible ?

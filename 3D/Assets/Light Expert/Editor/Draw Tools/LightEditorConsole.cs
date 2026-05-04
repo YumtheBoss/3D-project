@@ -19,12 +19,14 @@ namespace LightMaster {
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PropertyField(property.FindPropertyRelative("showPrefix"));
-            if(property.FindPropertyRelative("showPrefix").boolValue) {
+            bool showPrefix = property.FindPropertyRelative("showPrefix").boolValue;
+            if(showPrefix) {
                 EditorGUILayout.PropertyField(property.FindPropertyRelative("prefixColor"));
-                EditorGUILayout.EndHorizontal();
+            }
+            EditorGUILayout.EndHorizontal();
+            
+            if(showPrefix) {
                 EditorGUILayout.PropertyField(property.FindPropertyRelative("prefixText"));
-            } else {
-                EditorGUILayout.EndHorizontal();
             }
             EditorGUILayout.PropertyField(property.FindPropertyRelative("showLog"));
             EditorGUILayout.PropertyField(property.FindPropertyRelative("showWarning"));

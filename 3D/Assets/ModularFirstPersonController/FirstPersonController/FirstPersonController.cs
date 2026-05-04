@@ -1,4 +1,4 @@
-﻿// CHANGE LOG
+// CHANGE LOG
 // 
 // CHANGES || version VERSION
 //
@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using MobileControls;
 
 #if UNITY_EDITOR
     using UnityEditor;
@@ -60,7 +61,7 @@ public class FirstPersonController : MonoBehaviour
     public float maxVelocityChange = 10f;
 
     // Internal Variables
-    private bool isWalking = false;
+    public bool isWalking = false;
 
     #region Sprint
 
@@ -83,7 +84,7 @@ public class FirstPersonController : MonoBehaviour
 
     // Internal Variables
     private CanvasGroup sprintBarCG;
-    private bool isSprinting = false;
+    public bool isSprinting = false;
     private float sprintRemaining;
     private float sprintBarWidth;
     private float sprintBarHeight;
@@ -133,14 +134,49 @@ public class FirstPersonController : MonoBehaviour
 
     private void Awake()
     {
+        // --- ĐỌC CÀI ĐẶT (SETTINGS) ---
+        mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 2f);
+        AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1f);
+        // -------------------------------
+
         rb = GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = gameObject.AddComponent<Rigidbody>();
+        }
+        
+        // Bắt buộc thiết lập các thông số Vật lý chuẩn để nhân vật KHÔNG bị kẹt
+        rb.freezeRotation = true;
+        rb.useGravity = true;
+        rb.isKinematic = false;
+
+        if (playerCamera == null)
+        {
+            playerCamera = Camera.main;
+        }
 
         crosshairObject = GetComponentInChildren<Image>();
 
         // Set internal variables
-        playerCamera.fieldOfView = fov;
+        if (playerCamera != null) playerCamera.fieldOfView = fov;
         originalScale = transform.localScale;
-        jointOriginalPos = joint.localPosition;
+        
+        // Ngăn user tự gán chính GameObject này làm joint (sẽ gây lỗi dịch chuyển giật lùi về chỗ cũ)
+        if (joint == transform)
+        {
+            joint = null;
+        }
+
+        if (joint != null)
+        {
+            jointOriginalPos = joint.localPosition;
+        }
+        else if (playerCamera != null)
+        {
+            // Tự động gán Camera làm joint nếu bị thiếu
+            joint = playerCamera.transform;
+            jointOriginalPos = joint.localPosition;
+        }
 
         if (!unlimitedSprint)
         {
@@ -156,12 +192,12 @@ public class FirstPersonController : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
         }
 
-        if(crosshair)
+        if(crosshair && crosshairObject != null)
         {
             crosshairObject.sprite = crosshairImage;
             crosshairObject.color = crosshairColor;
         }
-        else
+        else if (crosshairObject != null)
         {
             crosshairObject.gameObject.SetActive(false);
         }
@@ -170,7 +206,7 @@ public class FirstPersonController : MonoBehaviour
 
         sprintBarCG = GetComponentInChildren<CanvasGroup>();
 
-        if(useSprintBar)
+        if(useSprintBar && sprintBarBG != null && sprintBar != null)
         {
             sprintBarBG.gameObject.SetActive(true);
             sprintBar.gameObject.SetActive(true);
@@ -184,15 +220,15 @@ public class FirstPersonController : MonoBehaviour
             sprintBarBG.rectTransform.sizeDelta = new Vector3(sprintBarWidth, sprintBarHeight, 0f);
             sprintBar.rectTransform.sizeDelta = new Vector3(sprintBarWidth - 2, sprintBarHeight - 2, 0f);
 
-            if(hideBarWhenFull)
+            if(hideBarWhenFull && sprintBarCG != null)
             {
                 sprintBarCG.alpha = 0;
             }
         }
         else
         {
-            sprintBarBG.gameObject.SetActive(false);
-            sprintBar.gameObject.SetActive(false);
+            if (sprintBarBG != null) sprintBarBG.gameObject.SetActive(false);
+            if (sprintBar != null) sprintBar.gameObject.SetActive(false);
         }
 
         #endregion
@@ -207,23 +243,36 @@ public class FirstPersonController : MonoBehaviour
         // Control camera movement
         if(cameraCanMove)
         {
-            yaw = transform.localEulerAngles.y + Input.GetAxis("Mouse X") * mouseSensitivity;
+            float inputX = Input.GetAxis("Mouse X");
+            float inputY = Input.GetAxis("Mouse Y");
+
+            // Nếu có touch input, sử dụng nó thay thế
+            if (MobileTouchCamera.lookInput != Vector2.zero)
+            {
+                inputX = MobileTouchCamera.lookInput.x * 0.1f; // Giảm độ nhạy touch
+                inputY = MobileTouchCamera.lookInput.y * 0.1f;
+            }
+
+            yaw = transform.localEulerAngles.y + inputX * mouseSensitivity;
 
             if (!invertCamera)
             {
-                pitch -= mouseSensitivity * Input.GetAxis("Mouse Y");
+                pitch -= mouseSensitivity * inputY;
             }
             else
             {
                 // Inverted Y
-                pitch += mouseSensitivity * Input.GetAxis("Mouse Y");
+                pitch += mouseSensitivity * inputY;
             }
 
             // Clamp pitch between lookAngle
             pitch = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
 
             transform.localEulerAngles = new Vector3(0, yaw, 0);
-            playerCamera.transform.localEulerAngles = new Vector3(pitch, 0, 0);
+            if (playerCamera != null)
+            {
+                playerCamera.transform.localEulerAngles = new Vector3(pitch, 0, 0);
+            }
         }
 
         #region Camera Zoom
@@ -259,13 +308,16 @@ public class FirstPersonController : MonoBehaviour
             }
 
             // Lerps camera.fieldOfView to allow for a smooth transistion
-            if(isZoomed)
+            if(playerCamera != null)
             {
-                playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, zoomFOV, zoomStepTime * Time.deltaTime);
-            }
-            else if(!isZoomed && !isSprinting)
-            {
-                playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, fov, zoomStepTime * Time.deltaTime);
+                if(isZoomed)
+                {
+                    playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, zoomFOV, zoomStepTime * Time.deltaTime);
+                }
+                else if(!isZoomed && !isSprinting)
+                {
+                    playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, fov, zoomStepTime * Time.deltaTime);
+                }
             }
         }
 
@@ -279,7 +331,10 @@ public class FirstPersonController : MonoBehaviour
             if(isSprinting)
             {
                 isZoomed = false;
-                playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, sprintFOV, sprintFOVStepTime * Time.deltaTime);
+                if (playerCamera != null)
+                {
+                    playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, sprintFOV, sprintFOVStepTime * Time.deltaTime);
+                }
 
                 // Drain sprint remaining while sprinting
                 if(!unlimitedSprint)
@@ -314,7 +369,7 @@ public class FirstPersonController : MonoBehaviour
             }
 
             // Handles sprintBar 
-            if(useSprintBar && !unlimitedSprint)
+            if(useSprintBar && !unlimitedSprint && sprintBar != null)
             {
                 float sprintRemainingPercent = sprintRemaining / sprintDuration;
                 sprintBar.transform.localScale = new Vector3(sprintRemainingPercent, 1f, 1f);
@@ -370,12 +425,30 @@ public class FirstPersonController : MonoBehaviour
 
         if (playerCanMove)
         {
-            // Calculate how fast we should be moving
-            Vector3 targetVelocity = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
+            // Đọc phím bấm trực tiếp thay vì qua GetAxis
+            float moveH = 0f;
+            float moveV = 0f;
+
+            // PC Input
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) moveV += 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) moveV -= 1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) moveH += 1f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveH -= 1f;
+
+            // Mobile Joystick Input
+            if (MobileJoystick.inputVector != Vector2.zero)
+            {
+                moveH = MobileJoystick.inputVector.x;
+                moveV = MobileJoystick.inputVector.y;
+            }
+
+            // Tính toán hướng di chuyển
+            Vector3 targetVelocity = new Vector3(moveH, 0, moveV);
+            if (targetVelocity.magnitude > 1f) targetVelocity.Normalize();
 
             // Checks if player is walking and isGrounded
             // Will allow head bob
-            if (targetVelocity.x != 0 || targetVelocity.z != 0 && isGrounded)
+            if ((targetVelocity.x != 0 || targetVelocity.z != 0) && isGrounded)
             {
                 isWalking = true;
             }
@@ -385,7 +458,8 @@ public class FirstPersonController : MonoBehaviour
             }
 
             // All movement calculations shile sprint is active
-            if (enableSprint && Input.GetKey(sprintKey) && sprintRemaining > 0f && !isSprintCooldown)
+            bool isSprintInput = Input.GetKey(sprintKey) || MobileButtons.isSprinting;
+            if (enableSprint && isSprintInput && sprintRemaining > 0f && !isSprintCooldown)
             {
                 targetVelocity = transform.TransformDirection(targetVelocity) * sprintSpeed;
 
@@ -407,7 +481,7 @@ public class FirstPersonController : MonoBehaviour
                         Crouch();
                     }
 
-                    if (hideBarWhenFull && !unlimitedSprint)
+                    if (useSprintBar && hideBarWhenFull && !unlimitedSprint && sprintBarCG != null)
                     {
                         sprintBarCG.alpha += 5 * Time.deltaTime;
                     }
@@ -420,7 +494,7 @@ public class FirstPersonController : MonoBehaviour
             {
                 isSprinting = false;
 
-                if (hideBarWhenFull && sprintRemaining == sprintDuration)
+                if (useSprintBar && hideBarWhenFull && sprintRemaining == sprintDuration && sprintBarCG != null)
                 {
                     sprintBarCG.alpha -= 3 * Time.deltaTime;
                 }
@@ -517,13 +591,19 @@ public class FirstPersonController : MonoBehaviour
                 timer += Time.deltaTime * bobSpeed;
             }
             // Applies HeadBob movement
-            joint.localPosition = new Vector3(jointOriginalPos.x + Mathf.Sin(timer) * bobAmount.x, jointOriginalPos.y + Mathf.Sin(timer) * bobAmount.y, jointOriginalPos.z + Mathf.Sin(timer) * bobAmount.z);
+            if (joint != null)
+            {
+                joint.localPosition = new Vector3(jointOriginalPos.x + Mathf.Sin(timer) * bobAmount.x, jointOriginalPos.y + Mathf.Sin(timer) * bobAmount.y, jointOriginalPos.z + Mathf.Sin(timer) * bobAmount.z);
+            }
         }
         else
         {
             // Resets when play stops moving
             timer = 0;
-            joint.localPosition = new Vector3(Mathf.Lerp(joint.localPosition.x, jointOriginalPos.x, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.y, jointOriginalPos.y, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.z, jointOriginalPos.z, Time.deltaTime * bobSpeed));
+            if (joint != null)
+            {
+                joint.localPosition = new Vector3(Mathf.Lerp(joint.localPosition.x, jointOriginalPos.x, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.y, jointOriginalPos.y, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.z, jointOriginalPos.z, Time.deltaTime * bobSpeed));
+            }
         }
     }
 }
