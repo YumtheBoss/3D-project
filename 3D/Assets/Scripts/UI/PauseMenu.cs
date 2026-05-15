@@ -76,6 +76,9 @@ namespace GameUI
 
         private void Update()
         {
+            // DEBUG: Kiểm tra xem script có đang chạy không
+            if (Input.anyKeyDown) Debug.Log($"[PauseMenu] Phím vừa nhấn: {Input.inputString}");
+
             // Nhấn phím ESC (PC) hoặc nút Pause (Mobile)
             bool isPauseInput = Input.GetKeyDown(KeyCode.Escape) || MobileButtons.pausePressed;
             if (isPauseInput)
@@ -142,8 +145,12 @@ namespace GameUI
             
             if (fpc != null) fpc.cameraCanMove = false;
             
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            // Chỉ thao tác cursor trên PC
+            if (!Application.isMobilePlatform)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
 
             // Ẩn HUD và chữ tương tác khi Pause
             if (hudPanel != null) hudPanel.SetActive(false);
@@ -162,9 +169,12 @@ namespace GameUI
             // Bật lại xoay camera
             if (fpc != null) fpc.cameraCanMove = true;
             
-            // Ẩn và khoá chuột
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            // Chỉ thao tác cursor trên PC
+            if (!Application.isMobilePlatform)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
 
             pauseMenuPanel.SetActive(false);
             if (settingsPanel != null) settingsPanel.SetActive(false);

@@ -187,7 +187,8 @@ public class FirstPersonController : MonoBehaviour
 
     void Start()
     {
-        if(lockCursor)
+        // Chỉ khoá cursor trên PC (mobile không có cursor)
+        if(lockCursor && !Application.isMobilePlatform)
         {
             Cursor.lockState = CursorLockMode.Locked;
         }
@@ -238,6 +239,9 @@ public class FirstPersonController : MonoBehaviour
 
     private void Update()
     {
+        // DEBUG: Xóa dòng này sau khi test xong
+        // Debug.Log("FirstPersonController is running...");
+
         #region Camera
 
         // Control camera movement
@@ -340,11 +344,8 @@ public class FirstPersonController : MonoBehaviour
                 if(!unlimitedSprint)
                 {
                     sprintRemaining -= 1 * Time.deltaTime;
-                    if (sprintRemaining <= 0)
-                    {
                         isSprinting = false;
                         isSprintCooldown = true;
-                    }
                 }
             }
             else
@@ -435,12 +436,9 @@ public class FirstPersonController : MonoBehaviour
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) moveH += 1f;
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveH -= 1f;
 
-            // Mobile Joystick Input
-            if (MobileJoystick.inputVector != Vector2.zero)
-            {
-                moveH = MobileJoystick.inputVector.x;
-                moveV = MobileJoystick.inputVector.y;
-            }
+            // Mobile Joystick Input (Cộng dồn với PC Input)
+            moveH += MobileJoystick.inputVector.x;
+            moveV += MobileJoystick.inputVector.y;
 
             // Tính toán hướng di chuyển
             Vector3 targetVelocity = new Vector3(moveH, 0, moveV);

@@ -12,6 +12,9 @@ namespace GameUI
         public GameObject mainMenuPanel;
         public GameObject settingsPanel;
 
+        [Header("Cutscene")]
+        public CutsceneManager cutsceneManager;
+
         [Header("Settings UI - Volume")]
         [Tooltip("Thanh chỉnh âm lượng tổng")]
         public Slider masterVolumeSlider;
@@ -73,7 +76,16 @@ namespace GameUI
             // Xoá file save (đặt lại level 0) rồi mới load game
             PlayerPrefs.SetInt("SavedLevel", 0);
             PlayerPrefs.Save();
-            SceneManager.LoadScene(gameSceneName);
+            
+            if (cutsceneManager != null)
+            {
+                mainMenuPanel.SetActive(false); // Ẩn menu
+                cutsceneManager.PlayCutscene(gameSceneName);
+            }
+            else
+            {
+                SceneManager.LoadScene(gameSceneName);
+            }
         }
 
         public void ShowSettings()
