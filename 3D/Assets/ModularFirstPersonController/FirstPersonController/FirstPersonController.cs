@@ -138,6 +138,10 @@ public class FirstPersonController : MonoBehaviour
         mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 2f);
         AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1f);
         // -------------------------------
+        
+        // Reset joystick ảo trong trường hợp biến static bị kẹt do tắt Playmode hoặc script bị disable
+        MobileJoystick.inputVector = Vector2.zero;
+        MobileButtons.isSprinting = false;
 
         rb = GetComponent<Rigidbody>();
         if (rb == null)
@@ -437,12 +441,27 @@ public class FirstPersonController : MonoBehaviour
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveH -= 1f;
 
             // Mobile Joystick Input (Cộng dồn với PC Input)
-            moveH += MobileJoystick.inputVector.x;
-            moveV += MobileJoystick.inputVector.y;
+            // KIỂM TRA NGẶT NGHÈO: Chỉ nhận input từ Joystick nếu đang có chạm tay hoặc click chuột
+            if (Application.isMobilePlatform || Input.GetMouseButton(0) || Input.touchCount > 0)
+            {
+                moveH += MobileJoystick.inputVector.x;
+                moveV += MobileJoystick.inputVector.y;
+            }
+            else
+            {
+                // Nếu chơi trên PC mà thả chuột ra, XÓA NGAY LẬP TỨC lực ảo của Joystick
+                MobileJoystick.inputVector = Vector2.zero;
+            }
 
             // Tính toán hướng di chuyển
             Vector3 targetVelocity = new Vector3(moveH, 0, moveV);
             if (targetVelocity.magnitude > 1f) targetVelocity.Normalize();
+
+            // DEBUG INPUT
+            if (moveV != 0 || moveH != 0) 
+            {
+                Debug.Log($"[FPC Debug] moveH: {moveH}, moveV: {moveV}, targetVel: {targetVelocity}, IsGrounded: {isGrounded}");
+            }
 
             // Checks if player is walking and isGrounded
             // Will allow head bob
@@ -461,31 +480,40 @@ public class FirstPersonController : MonoBehaviour
             {
                 targetVelocity = transform.TransformDirection(targetVelocity) * sprintSpeed;
 
-                // Apply a force that attempts to reach our target velocity
-                Vector3 velocity = rb.linearVelocity;
-                Vector3 velocityChange = (targetVelocity - velocity);
-                velocityChange.x = Mathf.Clamp(velocityChange.x, -maxVelocityChange, maxVelocityChange);
-                velocityChange.z = Mathf.Clamp(velocityChange.z, -maxVelocityChange, maxVelocityChange);
-                velocityChange.y = 0;
-
-                // Player is only moving when valocity change != 0
-                // Makes sure fov change only happens during movement
-                if (velocityChange.x != 0 || velocityChange.z != 0)
+                if (targetVelocity.magnitude < 0.1f && isGrounded)
                 {
-                    isSprinting = true;
-
-                    if (isCrouched)
-                    {
-                        Crouch();
-                    }
-
-                    if (useSprintBar && hideBarWhenFull && !unlimitedSprint && sprintBarCG != null)
-                    {
-                        sprintBarCG.alpha += 5 * Time.deltaTime;
-                    }
+                    // Dừng lập tức khi không bấm phím và đang ở trên mặt đất
+                    rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+                    isSprinting = false;
                 }
+                else
+                {
+                    // Apply a force that attempts to reach our target velocity
+                    Vector3 velocity = rb.linearVelocity;
+                    Vector3 velocityChange = (targetVelocity - velocity);
+                    
+                    velocityChange.x = Mathf.Clamp(velocityChange.x, -maxVelocityChange, maxVelocityChange);
+                    velocityChange.z = Mathf.Clamp(velocityChange.z, -maxVelocityChange, maxVelocityChange);
+                    velocityChange.y = 0;
 
-                rb.AddForce(velocityChange, ForceMode.VelocityChange);
+                    // Player is only moving when there is input (targetVelocity > 0)
+                    if (targetVelocity.magnitude > 0.1f)
+                    {
+                        isSprinting = true;
+
+                        if (isCrouched)
+                        {
+                            Crouch();
+                        }
+
+                        if (useSprintBar && hideBarWhenFull && !unlimitedSprint && sprintBarCG != null)
+                        {
+                            sprintBarCG.alpha += 5 * Time.deltaTime;
+                        }
+                    }
+
+                    rb.AddForce(velocityChange, ForceMode.VelocityChange);
+                }
             }
             // All movement calculations while walking
             else
@@ -499,14 +527,23 @@ public class FirstPersonController : MonoBehaviour
 
                 targetVelocity = transform.TransformDirection(targetVelocity) * walkSpeed;
 
-                // Apply a force that attempts to reach our target velocity
-                Vector3 velocity = rb.linearVelocity;
-                Vector3 velocityChange = (targetVelocity - velocity);
-                velocityChange.x = Mathf.Clamp(velocityChange.x, -maxVelocityChange, maxVelocityChange);
-                velocityChange.z = Mathf.Clamp(velocityChange.z, -maxVelocityChange, maxVelocityChange);
-                velocityChange.y = 0;
+                if (targetVelocity.magnitude < 0.1f && isGrounded)
+                {
+                    // Dừng lập tức khi không bấm phím và đang ở trên mặt đất
+                    rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+                }
+                else
+                {
+                    // Apply a force that attempts to reach our target velocity
+                    Vector3 velocity = rb.linearVelocity;
+                    Vector3 velocityChange = (targetVelocity - velocity);
+                    
+                    velocityChange.x = Mathf.Clamp(velocityChange.x, -maxVelocityChange, maxVelocityChange);
+                    velocityChange.z = Mathf.Clamp(velocityChange.z, -maxVelocityChange, maxVelocityChange);
+                    velocityChange.y = 0;
 
-                rb.AddForce(velocityChange, ForceMode.VelocityChange);
+                    rb.AddForce(velocityChange, ForceMode.VelocityChange);
+                }
             }
         }
 

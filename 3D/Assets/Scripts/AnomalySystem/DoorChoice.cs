@@ -52,6 +52,18 @@ namespace AnomalySystem
             float distance = Vector3.Distance(transform.position, playerTransform.position);
             isPlayerNear = (distance <= interactDistance);
 
+            // Ẩn chức năng và chữ nếu màn hình Intro Chương 1 đang hiện
+            if (GameObject.Find("_ChapterIntroCanvas_Auto") != null) 
+            {
+                return;
+            }
+
+            // Theo yêu cầu: Chặn người chơi không cho đi qua cửa gắn isAnomaly
+            if (isAnomalyDoor)
+            {
+                return;
+            }
+
             // Kiểm tra nếu người chơi đang ở gần và bấm phím E (PC) hoặc nút Interact (Mobile)
             bool isInteractInput = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
             if (isPlayerNear && isInteractInput)
@@ -81,6 +93,12 @@ namespace AnomalySystem
         {
             if (isPlayerNear && Time.timeScale > 0f)
             {
+                // Ẩn chữ nếu Intro đang hiện
+                if (GameObject.Find("_ChapterIntroCanvas_Auto") != null) return;
+
+                // Ẩn chữ tương tác nếu đây là cửa isAnomaly (bị chặn)
+                if (isAnomalyDoor) return;
+
                 GUIStyle style = new GUIStyle();
                 style.fontSize = 24;
                 style.normal.textColor = Color.white;

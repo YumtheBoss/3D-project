@@ -89,6 +89,13 @@ public class JumpscareController : MonoBehaviour
     public void TriggerJumpscare()
     {
         if (!isReady) return;
+        
+        // Gửi dữ liệu màn chơi bị jumpscare lên Firebase
+        if (AnomalySystem.LevelManager.Instance != null && FirebaseDatabaseManager.Instance != null)
+        {
+            FirebaseDatabaseManager.Instance.SaveJumpscareLevel(AnomalySystem.LevelManager.Instance.currentLevel);
+        }
+
         StartCoroutine(ShowJumpscareRoutine());
     }
 

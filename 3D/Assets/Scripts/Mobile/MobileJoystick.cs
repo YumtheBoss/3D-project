@@ -19,8 +19,30 @@ namespace MobileControls
             if (joystickBackground == null) joystickBackground = GetComponent<RectTransform>();
             if (joystickHandle == null) joystickHandle = transform.GetChild(0).GetComponent<RectTransform>();
             
-            // Ẩn joystick nếu không phải mobile (tùy chọn)
-            // if (!Application.isMobilePlatform) gameObject.SetActive(false);
+            inputVector = Vector2.zero; // Đảm bảo reset lại khi mới vào scene
+        }
+
+        private void OnEnable()
+        {
+            inputVector = Vector2.zero;
+        }
+
+        private void OnDisable()
+        {
+            inputVector = Vector2.zero;
+        }
+
+        private void Update()
+        {
+            // Fix lỗi kẹt joystick khi chuột bị kéo thả ra ngoài cửa sổ Unity hoặc màn hình điện thoại
+            if (!Application.isMobilePlatform && !Input.GetMouseButton(0) && inputVector != Vector2.zero)
+            {
+                OnPointerUp(null);
+            }
+            else if (Application.isMobilePlatform && Input.touchCount == 0 && inputVector != Vector2.zero)
+            {
+                OnPointerUp(null);
+            }
         }
 
         public void OnPointerDown(PointerEventData eventData)

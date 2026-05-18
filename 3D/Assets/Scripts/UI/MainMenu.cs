@@ -75,7 +75,14 @@ namespace GameUI
             PlayClickSound();
             // Xoá file save (đặt lại level 0) rồi mới load game
             PlayerPrefs.SetInt("SavedLevel", 0);
+            PlayerPrefs.SetString("SavedInventory", ""); // Xoá túi đồ khi chơi mới
             PlayerPrefs.Save();
+            
+            // Xóa trực tiếp trong InventoryManager nếu đã load
+            if (AnomalySystem.InventoryManager.Instance != null)
+            {
+                AnomalySystem.InventoryManager.Instance.ClearInventory();
+            }
             
             if (cutsceneManager != null)
             {

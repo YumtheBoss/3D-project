@@ -18,6 +18,8 @@ namespace GameUI
         public GameObject hudPanel;
         [Tooltip("Kéo Canvas chứa chữ 'Ấn E' vào đây để ẩn khi Pause")]
         public GameObject interactionCanvas;
+        [Tooltip("Kéo Inventory Panel vào đây để bật/tắt bằng phím Tab/I")]
+        public GameObject inventoryPanel;
 
         [Header("Settings UI - Volume")]
         [Tooltip("Thanh chỉnh âm lượng tổng")]
@@ -31,6 +33,7 @@ namespace GameUI
         public Slider sensitivitySlider;
 
         private bool isPaused = false;
+        private bool isInventoryOpen = false;
         
         // Tham chiếu đến FirstPersonController để đổi tốc độ chuột ngay lập tức
         private FirstPersonController fpc;
@@ -44,6 +47,7 @@ namespace GameUI
             // Ẩn Menu khi mới vào game
             pauseMenuPanel.SetActive(false);
             if (settingsPanel != null) settingsPanel.SetActive(false);
+            if (inventoryPanel != null) inventoryPanel.SetActive(false);
 
             // Đọc cài đặt cũ lên thanh trượt
             if (masterVolumeSlider != null)
@@ -84,7 +88,11 @@ namespace GameUI
             if (isPauseInput)
             {
                 Debug.Log("Đã bấm phím ESC!");
-                if (isPaused) 
+                if (isInventoryOpen)
+                {
+                    CloseInventory();
+                }
+                else if (isPaused) 
                 {
                     Debug.Log("Đang tắt Pause Menu...");
                     ResumeGame();
@@ -93,6 +101,19 @@ namespace GameUI
                 {
                     Debug.Log("Đang bật Pause Menu...");
                     PauseGame();
+                }
+            }
+
+            // Nhấn phím Tab hoặc I để mở Túi Đồ
+            if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I))
+            {
+                if (isInventoryOpen)
+                {
+                    CloseInventory();
+                }
+                else if (!isPaused) // Không cho phép mở túi đồ khi đang Pause
+                {
+                    OpenInventory();
                 }
             }
 
@@ -136,6 +157,44 @@ namespace GameUI
                         Debug.Log($"[DEBUG] Input Module: {inputModule.GetType().Name}");
                 }
             }
+        }
+
+        public void OpenInventory()
+        {
+            isInventoryOpen = true;
+            Time.timeScale = 0f;
+            
+            if (fpc != null) fpc.cameraCanMove = false;
+            
+            if (!Application.isMobilePlatform)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+
+            if (hudPanel != null) hudPanel.SetActive(false);
+            if (interactionCanvas != null) interactionCanvas.SetActive(false);
+
+            if (inventoryPanel != null) inventoryPanel.SetActive(true);
+        }
+
+        public void CloseInventory()
+        {
+            isInventoryOpen = false;
+            Time.timeScale = 1f;
+            
+            if (fpc != null) fpc.cameraCanMove = true;
+            
+            if (!Application.isMobilePlatform)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+
+            if (inventoryPanel != null) inventoryPanel.SetActive(false);
+
+            if (hudPanel != null) hudPanel.SetActive(true);
+            if (interactionCanvas != null) interactionCanvas.SetActive(true);
         }
 
         public void PauseGame()
