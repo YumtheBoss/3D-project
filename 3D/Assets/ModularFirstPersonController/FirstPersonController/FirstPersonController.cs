@@ -134,11 +134,14 @@ public class FirstPersonController : MonoBehaviour
 
     private void Awake()
     {
+        // Persist qua scene Room5
+        DontDestroyOnLoad(gameObject);
+
         // --- ĐỌC CÀI ĐẶT (SETTINGS) ---
         mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 2f);
         AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1f);
         // -------------------------------
-        
+
         // Reset joystick ảo trong trường hợp biến static bị kẹt do tắt Playmode hoặc script bị disable
         MobileJoystick.inputVector = Vector2.zero;
         MobileButtons.isSprinting = false;
@@ -348,8 +351,12 @@ public class FirstPersonController : MonoBehaviour
                 if(!unlimitedSprint)
                 {
                     sprintRemaining -= 1 * Time.deltaTime;
+                    if (sprintRemaining <= 0f)
+                    {
+                        sprintRemaining = 0f;
                         isSprinting = false;
                         isSprintCooldown = true;
+                    }
                 }
             }
             else
@@ -456,12 +463,6 @@ public class FirstPersonController : MonoBehaviour
             // Tính toán hướng di chuyển
             Vector3 targetVelocity = new Vector3(moveH, 0, moveV);
             if (targetVelocity.magnitude > 1f) targetVelocity.Normalize();
-
-            // DEBUG INPUT
-            if (moveV != 0 || moveH != 0) 
-            {
-                Debug.Log($"[FPC Debug] moveH: {moveH}, moveV: {moveV}, targetVel: {targetVelocity}, IsGrounded: {isGrounded}");
-            }
 
             // Checks if player is walking and isGrounded
             // Will allow head bob

@@ -1,65 +1,73 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 using MobileControls;
 
 /// <summary>
-/// Script đèn pin điện thoại. Gắn vào Player hoặc Camera.
-/// Tự động tạo một Spot Light gắn trên camera và toggle bật/tắt.
-/// PC: Phím F | Mobile: Nút FlashlightButton
+/// Script đèn pin điện thoại (single source of truth).
+/// - Tự tạo Spot Light gắn trên camera.
+/// - Toggle: Phím F (PC) | Nút flashlight (Mobile).
+/// - Room 3+: quét DemonController trong vùng sáng; chiếu 3s → quỷ tan biến → khóa 5s.
 /// </summary>
 public class FlashlightController : MonoBehaviour
 {
-    [Header("Cài đặt đèn pin")]
-    [Tooltip("Camera của người chơi. Để trống thì script tự tìm Camera.main")]
+    // ─── Cài đặt đèn pin ───────────────────────────────────────
+    [Header("Đèn pin")]
+    [Tooltip("Camera của người chơi. Để trống thì tự tìm Camera.main")]
     public Camera playerCamera;
-
-    [Tooltip("Góc chùm sáng của đèn pin (độ)")]
-    [Range(10f, 60f)]
-    public float spotAngle = 25f;
-
-    [Tooltip("Tầm sáng tối đa (mét)")]
+    [Range(10f, 60f)] public float spotAngle = 25f;
     public float lightRange = 15f;
-
-    [Tooltip("Cường độ đèn pin")]
     public float lightIntensity = 3f;
-
-    [Tooltip("Màu ánh sáng đèn pin (trắng hơi vàng cho thực tế hơn)")]
     public Color lightColor = new Color(1f, 0.98f, 0.9f);
-
-    [Header("Hiệu ứng bật/tắt")]
-    [Tooltip("Bật đèn pin khi bắt đầu game")]
     public bool startsOn = false;
 
-    [Tooltip("Âm thanh click khi bật/tắt đèn pin")]
+    [Header("Hiệu ứng bật/tắt")]
     public AudioClip toggleSound;
-    [Range(0f, 1f)]
-    public float toggleSoundVolume = 0.6f;
+    [Range(0f, 1f)] public float toggleSoundVolume = 0.6f;
 
+    // ─── Demon detection (Room 3+) ─────────────────────────────
+    [Header("Demon Detection (Room 3+)")]
+    [Tooltip("Layer chứa các Demon để scan (để trống = dùng Physics.DefaultRaycastLayers)")]
+    public LayerMask demonLayer = Physics.DefaultRaycastLayers;
+    [Tooltip("Giây chiếu liên tục để quỷ tan biến")]
+    public float lightVanishTime = 3f;
+    [Tooltip("Giây khóa đèn sau khi quỷ tan biến")]
+    public float cooldownDuration = 5f;
+    [Tooltip("Text UI hiển thị đếm ngược cooldown (tùy chọn)")]
+    public Text cooldownText;
+
+    // ─── State (đọc từ bên ngoài) ──────────────────────────────
     [Header("Debug / Info")]
-    [Tooltip("Trạng thái hiện tại của đèn pin (chỉ đọc)")]
     public bool isFlashlightOn = false;
+    public bool IsFlashlightOn => isFlashlightOn;
+    public bool IsOnCooldown { get; private set; }
 
-    // ---- Nội bộ ----
+    // ─── Nội bộ ────────────────────────────────────────────────
     private Light flashlight;
     private AudioSource audioSource;
-    private bool inputCooldown = false; // Tránh toggle liên tục
+    private bool inputCooldown = false;
+    private float cooldownRemaining;
+    private bool demonScanActive = false;
+
+    // ═══════════════════════════════════════════════════════════
+    // UNITY LIFECYCLE
+    // ═══════════════════════════════════════════════════════════
 
     private void Awake()
     {
-        // Tìm camera nếu chưa gán
         if (playerCamera == null)
             playerCamera = Camera.main;
 
         if (playerCamera == null)
         {
-            Debug.LogError("[FlashlightController] Không tìm thấy Camera! Hãy kéo Camera vào Inspector.");
+            Debug.LogError("[FlashlightController] Không tìm thấy Camera!");
             return;
         }
 
         // Tạo Spot Light con của Camera
         GameObject lightObj = new GameObject("_Flashlight");
         lightObj.transform.SetParent(playerCamera.transform, false);
-        lightObj.transform.localPosition = new Vector3(0.15f, -0.1f, 0.3f); // Lệch phải nhẹ giống đèn pin thực
+        lightObj.transform.localPosition = new Vector3(0.15f, -0.1f, 0.3f);
         lightObj.transform.localRotation = Quaternion.identity;
 
         flashlight = lightObj.AddComponent<Light>();
@@ -73,50 +81,121 @@ public class FlashlightController : MonoBehaviour
         flashlight.gameObject.SetActive(startsOn);
         isFlashlightOn = startsOn;
 
-        // AudioSource để phát tiếng click
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
 
-        Debug.Log("[FlashlightController] Đèn pin đã được tạo và gắn vào camera.");
+        UpdateCooldownUI(0f);
+    }
+
+    private void OnEnable()
+    {
+        RoomManager.OnRoomEntered += HandleRoomEntered;
+    }
+
+    private void OnDisable()
+    {
+        RoomManager.OnRoomEntered -= HandleRoomEntered;
+    }
+
+    private void HandleRoomEntered(RoomManager.RoomState room)
+    {
+        // Demon scan chỉ hoạt động từ Room 3 trở đi
+        demonScanActive = room >= RoomManager.RoomState.Room3;
     }
 
     private void Update()
     {
-        if (inputCooldown) return;
-
-        // PC: Phím F | Mobile: flashlightPressed
-        bool toggleInput = Input.GetKeyDown(KeyCode.F) || MobileButtons.flashlightPressed;
-
-        if (toggleInput)
+        // ── Cooldown đếm ngược ──
+        if (IsOnCooldown)
         {
-            ToggleFlashlight();
-            StartCoroutine(InputCooldownRoutine());
+            cooldownRemaining -= Time.deltaTime;
+            UpdateCooldownUI(cooldownRemaining);
+            if (cooldownRemaining <= 0f)
+            {
+                IsOnCooldown = false;
+                cooldownRemaining = 0f;
+                UpdateCooldownUI(0f);
+            }
+            return; // Không cho toggle khi đang cooldown
         }
+
+        // ── Toggle đèn ──
+        if (!inputCooldown)
+        {
+            bool toggleInput = Input.GetKeyDown(KeyCode.F) || MobileButtons.flashlightPressed;
+            if (toggleInput)
+            {
+                ToggleFlashlight();
+                StartCoroutine(InputCooldownRoutine());
+            }
+        }
+
+        // ── Quét Demon khi đèn bật ──
+        if (isFlashlightOn && demonScanActive)
+            ScanForDemons();
     }
 
-    /// <summary>
-    /// Bật/Tắt đèn pin. Có thể gọi từ bên ngoài (ví dụ từ nút UI mobile).
-    /// </summary>
+    // ═══════════════════════════════════════════════════════════
+    // PUBLIC API
+    // ═══════════════════════════════════════════════════════════
+
     public void ToggleFlashlight()
     {
         if (flashlight == null) return;
-
         isFlashlightOn = !isFlashlightOn;
         flashlight.gameObject.SetActive(isFlashlightOn);
-
-        // Phát tiếng click
-        if (toggleSound != null && audioSource != null)
-            audioSource.PlayOneShot(toggleSound, toggleSoundVolume);
-
-        Debug.Log($"[FlashlightController] Đèn pin: {(isFlashlightOn ? "BẬT" : "TẮT")}");
+        if (toggleSound != null) audioSource.PlayOneShot(toggleSound, toggleSoundVolume);
     }
 
-    /// <summary>
-    /// Kiểm tra đèn pin hiện có đang bật không.
-    /// Dùng cho NotePickup để check "có nguồn sáng không".
-    /// </summary>
+    /// <summary>Dùng bởi NotePickup để kiểm tra "có nguồn sáng không".</summary>
     public bool IsOn() => isFlashlightOn;
+
+    /// <summary>Gọi bởi DemonController khi quỷ tan biến.</summary>
+    public void StartCooldown()
+    {
+        isFlashlightOn = false;
+        if (flashlight != null) flashlight.gameObject.SetActive(false);
+        IsOnCooldown = true;
+        cooldownRemaining = cooldownDuration;
+        UpdateCooldownUI(cooldownRemaining);
+        Debug.Log($"[FlashlightController] Đèn bị khóa {cooldownDuration}s.");
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // DEMON DETECTION
+    // ═══════════════════════════════════════════════════════════
+
+    private void ScanForDemons()
+    {
+        if (flashlight == null || playerCamera == null) return;
+
+        Collider[] hits = Physics.OverlapSphere(
+            playerCamera.transform.position, lightRange, demonLayer);
+
+        foreach (Collider col in hits)
+        {
+            Vector3 dir = (col.transform.position - playerCamera.transform.position).normalized;
+            float angle = Vector3.Angle(playerCamera.transform.forward, dir);
+            if (angle <= spotAngle * 0.5f)
+            {
+                DemonController demon = col.GetComponent<DemonController>();
+                demon?.OnLightHit(Time.deltaTime);
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // INTERNAL
+    // ═══════════════════════════════════════════════════════════
+
+    private void UpdateCooldownUI(float remaining)
+    {
+        if (cooldownText == null) return;
+        cooldownText.gameObject.SetActive(remaining > 0f);
+        if (remaining > 0f)
+            cooldownText.text = $"Đèn hồi phục: {remaining:F1}s";
+    }
 
     private IEnumerator InputCooldownRoutine()
     {
