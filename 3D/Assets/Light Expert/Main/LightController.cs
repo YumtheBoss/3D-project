@@ -38,6 +38,10 @@ namespace LightMaster {
         [Tooltip("Enables Events")]
         public bool EnableEvents;
 
+        [Header("Scene Restriction")]
+        [Tooltip("Chỉ kích hoạt các hiệu ứng đặc biệt (nhấp nháy, đổi màu...) trong MainMenu. Nếu tắt, hiệu ứng chạy ở mọi scene.")]
+        public bool limitToMainMenuOnly = true;
+
         [SerializeField] [Tooltip("If the Light is currently Blocked")]
         private bool isBlocked = false;
 
@@ -64,6 +68,19 @@ namespace LightMaster {
 
         private void Awake() {
             _thisLight = GetComponent<Light>();
+
+            // Chỉ kích hoạt các hiệu ứng chập chờn, đổi màu nếu đang ở scene MainMenu hoặc không giới hạn
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (limitToMainMenuOnly && !string.IsNullOrEmpty(sceneName) && !sceneName.ToLower().Contains("mainmenu"))
+            {
+                LightType = LightControllTypes.Default;
+                ColorGradient = false;
+                ColorSwitch = false;
+                SmoothIntensity = false;
+                SmoothSwitching = false;
+                return;
+            }
+
             if(LightType == LightControllTypes.Timer)
                 StartCoroutine(BeginTimer());
 

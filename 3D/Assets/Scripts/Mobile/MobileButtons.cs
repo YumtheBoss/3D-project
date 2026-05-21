@@ -8,6 +8,7 @@ namespace MobileControls
         public static bool isSprinting = false;
         public static bool interactPressed = false;
         public static bool pausePressed = false;
+        public static bool flashlightPressed = false;
 
         // Các hàm để gán vào sự kiện OnClick của Button trong Unity
         
@@ -34,8 +35,15 @@ namespace MobileControls
             Invoke("ResetPause", 0.1f);
         }
 
+        public void OnFlashlightClick()
+        {
+            flashlightPressed = true;
+            Invoke("ResetFlashlight", 0.1f);
+        }
+
         private void ResetInteract() { interactPressed = false; }
         private void ResetPause() { pausePressed = false; }
+        private void ResetFlashlight() { flashlightPressed = false; }
 
         private void Start()
         {
