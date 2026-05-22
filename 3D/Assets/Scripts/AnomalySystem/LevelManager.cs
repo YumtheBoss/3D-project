@@ -17,6 +17,8 @@ namespace AnomalySystem
         public int currentLevel = 0;
         [Tooltip("Đạt level này thì thắng (vd Exit 8)")]
         public int targetLevel = 8; 
+        [HideInInspector]
+        public float totalPlayTime = 0f;
 
         [Header("Events")]
         [Tooltip("Dùng để update UI hiển thị level")]
@@ -41,9 +43,16 @@ namespace AnomalySystem
         {
             // Đọc màn chơi đã lưu từ máy tính (mặc định là 0 nếu chưa có)
             currentLevel = PlayerPrefs.GetInt("SavedLevel", 0);
+            totalPlayTime = PlayerPrefs.GetFloat("SavedPlayTime", 0f);
             
             OnLevelChanged?.Invoke(currentLevel);
             StartNewLoop();
+        }
+
+        private void Update()
+        {
+            // Tăng thời gian chơi theo thời gian thực
+            totalPlayTime += Time.deltaTime;
         }
 
         // Hàm được gọi bởi cánh cửa (DoorChoice)
@@ -58,6 +67,7 @@ namespace AnomalySystem
                 
                 // LƯU TIẾN ĐỘ GAME
                 PlayerPrefs.SetInt("SavedLevel", currentLevel);
+                PlayerPrefs.SetFloat("SavedPlayTime", totalPlayTime);
                 PlayerPrefs.Save();
 
                 Debug.Log($"[LevelManager] Lựa chọn ĐÚNG. Lên Level {currentLevel}");
@@ -66,8 +76,22 @@ namespace AnomalySystem
                 if (currentLevel >= targetLevel)
                 {
                     Debug.Log("[LevelManager] BẠN ĐÃ CHIẾN THẮNG!");
+                    
+                    // GỬI DỮ LIỆU LÊN FIREBASE
+                    if (FirebaseDatabaseManager.Instance != null)
+                    {
+                        FirebaseDatabaseManager.Instance.SaveGameCompletionTime(totalPlayTime);
+                    }
+
+                    // HIỂN THỊ MÀN HÌNH CHÚC MỪNG VÀ THỜI GIAN
+                    if (GameEndUIController.Instance != null)
+                    {
+                        GameEndUIController.Instance.ShowEndScreen(totalPlayTime);
+                    }
+
                     // Khi thắng, xoá dữ liệu lưu để có thể chơi lại từ đầu
                     PlayerPrefs.SetInt("SavedLevel", 0);
+                    PlayerPrefs.SetFloat("SavedPlayTime", 0f);
                     PlayerPrefs.Save();
                     OnGameWon?.Invoke();
                     return; // Ngừng vòng lặp
@@ -80,6 +104,8 @@ namespace AnomalySystem
                 
                 // LƯU TIẾN ĐỘ GAME (RESET về 0)
                 PlayerPrefs.SetInt("SavedLevel", 0);
+                PlayerPrefs.SetFloat("SavedPlayTime", 0f);
+                totalPlayTime = 0f;
                 PlayerPrefs.Save();
 
                 Debug.Log("[LevelManager] Lựa chọn SAI. Reset Level về 0.");
