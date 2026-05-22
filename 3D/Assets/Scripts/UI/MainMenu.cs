@@ -355,8 +355,7 @@ namespace GameUI
         {
             if (isStartingGame) return;
             PlayClickSound();
-            // Xoá file save (đặt lại level 0) rồi mới load game
-            PlayerPrefs.SetInt("SavedLevel", 0);
+            PlayerPrefs.SetInt("CurrentRoom", 0);
             PlayerPrefs.Save();
             
             StartGameTransition();

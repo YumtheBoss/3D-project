@@ -63,15 +63,14 @@ namespace AnomalySystem
                 }
 
                 // 2. Chuyển màn chơi
-                if (LevelManager.Instance != null)
+                if (GameFlowManager.Instance != null)
                 {
-                    // Đặt lại biến để tránh lỗi bấm nhiều lần
                     isPlayerNear = false;
-                    LevelManager.Instance.OnPlayerMakeChoice(isAnomalyDoor);
+                    GameFlowManager.Instance.OnRoom2DoorChoice(isAnomalyDoor);
                 }
                 else
                 {
-                    Debug.LogError("Không tìm thấy LevelManager.Instance trong scene!");
+                    Debug.LogError("[DoorChoice] Không tìm thấy GameFlowManager.Instance trong scene!");
                 }
             }
         }
