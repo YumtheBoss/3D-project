@@ -181,6 +181,9 @@ public class FlashlightController : MonoBehaviour
             {
                 DemonController demon = col.GetComponent<DemonController>();
                 demon?.OnLightHit(Time.deltaTime);
+
+                FloorDemonAI floorDemon = col.GetComponent<FloorDemonAI>();
+                floorDemon?.OnLightHit(Time.deltaTime);
             }
         }
     }
