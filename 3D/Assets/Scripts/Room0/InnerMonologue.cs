@@ -64,6 +64,20 @@ public class InnerMonologue : MonoBehaviour
         activeRoutine = StartCoroutine(PlayMonologue());
     }
 
+    /// <summary>
+    /// Gọi thủ công từ script khác (ví dụ Room0Starter) để kích hoạt monologue
+    /// mà không cần player bước vào trigger — dùng khi player spawn ngay tại vị trí.
+    /// </summary>
+    public void PlayManually()
+    {
+        if (triggerOnce && hasTriggered) return;
+        if (isRunning) return;
+
+        hasTriggered = true;
+        if (activeRoutine != null) StopCoroutine(activeRoutine);
+        activeRoutine = StartCoroutine(PlayMonologue());
+    }
+
     // ─────────────────────────────────────────────────────────
     //  Coroutine chính
     // ─────────────────────────────────────────────────────────

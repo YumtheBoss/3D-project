@@ -24,6 +24,22 @@ public class Room2Door : MonoBehaviour
     private bool used = false;
     private Transform playerTransform;
 
+    private void OnEnable()
+    {
+        RoomManager.OnRoomEntered += HandleRoomEntered;
+    }
+
+    private void OnDisable()
+    {
+        RoomManager.OnRoomEntered -= HandleRoomEntered;
+    }
+
+    private void HandleRoomEntered(RoomManager.RoomState room)
+    {
+        // Reset mỗi khi vào Room 2 để player có thể tương tác lại nếu retry
+        if (room == RoomManager.RoomState.Room2) used = false;
+    }
+
     private void Start()
     {
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -41,6 +57,14 @@ public class Room2Door : MonoBehaviour
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null) playerTransform = playerObj.transform;
             else return;
+        }
+
+        // Chỉ hoạt động khi đang ở Room 2
+        if (RoomManager.Instance == null ||
+            RoomManager.Instance.CurrentRoom != RoomManager.RoomState.Room2)
+        {
+            isPlayerNear = false;
+            return;
         }
 
         float dist = Vector3.Distance(transform.position, playerTransform.position);
@@ -79,7 +103,7 @@ public class Room2Door : MonoBehaviour
 
         yield return new WaitForSeconds(jumpscareDelay);
 
-        RoomManager.Instance?.TriggerBadEndingTrapped();
+        RoomManager.Instance?.TriggerBadEnding("wrong_room2_door");
     }
 
     private void OnGUI()

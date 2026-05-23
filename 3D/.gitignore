@@ -79,3 +79,6 @@ Thumbs.db
 
 # Node.js
 node_modules/
+
+# Large PSD source files (exceed GitHub 100MB limit)
+Assets/**/PSD_Source/

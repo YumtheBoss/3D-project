@@ -1,0 +1,233 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using MobileControls;
+
+/// <summary>
+/// Mảnh giấy xé rách trong Room 1.
+/// Mặc định ẩn — chỉ hiện sau khi player đọc quyển sổ ở Room 0.
+/// Bỏ tick requiresBook nếu muốn tờ giấy luôn hiện từ đầu.
+/// </summary>
+public class TornPagePickup : MonoBehaviour
+{
+    [Header("Tương tác")]
+    public float pickupRange = 2f;
+
+    [Header("Điều kiện mở khóa")]
+    [Tooltip("Tờ giấy chỉ xuất hiện sau khi quyển sổ Room 0 đã được đọc")]
+    public bool requiresBook = true;
+
+    [Header("UI — kéo Panel từ Canvas vào đây")]
+    public GameObject pagePanelUI;
+    public TextMeshProUGUI pageContentText;
+    public Button closeButton;
+
+    [Header("Hint")]
+    public TextMeshProUGUI hintText;
+
+    [Header("Font")]
+    [Tooltip("Kéo TMP Font Asset vào đây để áp dụng font riêng cho nội dung tờ giấy")]
+    public TMP_FontAsset pageFont;
+
+    [Header("Audio")]
+    public AudioClip pickupSound;
+    [Range(0f, 1f)] public float volume = 0.8f;
+
+    // ── Nội dung mảnh giấy Room 1 ──────────────────────────────
+    private const string PAGE_CONTENT =
+        "<size=115%><b>— Ghi Chú —</b></size>\n\n" +
+        "Nếu bạn đang đọc điều này, bạn đã hiểu sai rồi.\n" +
+        "Cánh cửa kia <i>không</i> phải lối ra — đó là vòng lặp.\n\n" +
+        "<mark=#FFFF00AA><b>Thực thể tạo ra vòng lặp để giam cầm bạn.\n" +
+        "Nhưng nó không hoàn hảo.\n" +
+        "Mỗi lần bạn bước qua, có gì đó thay đổi — rất nhỏ.\n\n" +
+        "→ Quan sát. Ghi nhớ. Nhận ra sự khác biệt.\n" +
+        "→ Đó là cách duy nhất để thoát.</b></mark>\n\n" +
+        "<color=#CC0000><size=85%><i>Đừng để nó thấy bạn đứng yên quá lâu.</i></size></color>";
+
+    private bool hasBeenPickedUp = false;
+    private bool isOpen = false;
+    private bool isUnlocked = false;
+    private bool bookWasRead = false;
+    private bool room1Entered = false;
+    private Transform playerTransform;
+    private AudioSource audioSource;
+
+    private void OnEnable()
+    {
+        BookPickup.OnBookRead += HandleBookRead;
+        RoomManager.OnRoomEntered += HandleRoomEntered;
+    }
+
+    private void OnDisable()
+    {
+        BookPickup.OnBookRead -= HandleBookRead;
+        RoomManager.OnRoomEntered -= HandleRoomEntered;
+    }
+
+    private void Start()
+    {
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p != null) playerTransform = p.transform;
+
+        audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0.3f;
+
+        if (pagePanelUI != null) pagePanelUI.SetActive(false);
+        if (hintText != null)    hintText.gameObject.SetActive(false);
+        if (closeButton != null) closeButton.onClick.AddListener(ClosePage);
+
+        if (requiresBook)
+            SetPropVisible(false);  // ẩn từ đầu
+        else
+            isUnlocked = true;
+    }
+
+    private void HandleBookRead()
+    {
+        bookWasRead = true;
+        TryUnlock();
+    }
+
+    private void HandleRoomEntered(RoomManager.RoomState room)
+    {
+        if (room == RoomManager.RoomState.Room1)
+        {
+            room1Entered = true;
+            TryUnlock();
+        }
+        else if (room == RoomManager.RoomState.Room2)
+        {
+            // Tờ giấy chỉ tồn tại trong Room 1 — ẩn khi sang Room 2
+            SetPropVisible(false);
+            isUnlocked = false;
+        }
+        else if (room == RoomManager.RoomState.Room0)
+        {
+            // Reset khi bắt đầu lại từ Room 0
+            bookWasRead = false;
+            room1Entered = false;
+            isUnlocked = false;
+            hasBeenPickedUp = false;
+            if (requiresBook) SetPropVisible(false);
+        }
+    }
+
+    // Chỉ unlock khi CẢ HAI điều kiện đều thỏa: sổ đã đọc + đã vào Room 1
+    private void TryUnlock()
+    {
+        if (isUnlocked) return;
+        if (requiresBook && (!bookWasRead || !room1Entered)) return;
+        isUnlocked = true;
+        SetPropVisible(true);
+    }
+
+    private void SetPropVisible(bool visible)
+    {
+        foreach (var r in GetComponentsInChildren<Renderer>())
+            r.enabled = visible;
+        foreach (var c in GetComponentsInChildren<Collider>())
+            c.enabled = visible;
+
+        PickupGlow glow = GetComponent<PickupGlow>();
+        if (glow != null)
+        {
+            if (visible) glow.RestartGlow();
+            else         glow.StopGlow();
+        }
+    }
+
+    private void Update()
+    {
+        if (!isUnlocked) return;
+
+        if (isOpen)
+        {
+            if (Input.GetKeyDown(KeyCode.Escape)) ClosePage();
+            return;
+        }
+
+        if (hasBeenPickedUp || playerTransform == null) return;
+
+        float dist = Vector3.Distance(transform.position, playerTransform.position);
+        if (dist <= pickupRange)
+        {
+            ShowHint();
+            bool input = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+            if (input)
+            {
+                MobileButtons.interactPressed = false;
+                OpenPage();
+            }
+        }
+        else
+        {
+            HideHint();
+        }
+    }
+
+    private void OpenPage()
+    {
+        hasBeenPickedUp = true;
+        isOpen = true;
+        HideHint();
+        GetComponent<PickupGlow>()?.StopGlow();
+        BookPickup.UnlockNextPage();
+
+        if (pickupSound != null && audioSource != null)
+            audioSource.PlayOneShot(pickupSound, volume);
+
+        if (pagePanelUI == null)
+        {
+            Debug.LogWarning("[TornPagePickup] Chưa gán pagePanelUI!");
+            return;
+        }
+
+        if (pageContentText != null)
+        {
+            if (pageFont != null) pageContentText.font = pageFont;
+            pageContentText.text = PAGE_CONTENT;
+        }
+
+        pagePanelUI.SetActive(true);
+        Time.timeScale = 0f;
+
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
+
+    public void ClosePage()
+    {
+        if (pagePanelUI != null) pagePanelUI.SetActive(false);
+        isOpen = false;
+        Time.timeScale = 1f;
+
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+
+    private void ShowHint()
+    {
+        if (hintText == null) return;
+        hintText.gameObject.SetActive(true);
+        hintText.text = "Nhấn <b>[E]</b> để nhặt mảnh giấy";
+    }
+
+    private void HideHint()
+    {
+        if (hintText != null) hintText.gameObject.SetActive(false);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(1f, 0.9f, 0.5f, 0.4f);
+        Gizmos.DrawWireSphere(transform.position, pickupRange);
+    }
+}

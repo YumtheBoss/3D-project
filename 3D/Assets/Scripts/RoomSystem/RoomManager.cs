@@ -19,6 +19,8 @@ public class RoomManager : MonoBehaviour
     [SerializeField] private Transform player;
 
     [Header("Spawn Points (trong SampleScene)")]
+    [Tooltip("Spawn point đầu map — dùng cho Room 0, 1, 2 (vòng lặp cùng map)")]
+    [SerializeField] private Transform room012SpawnPoint;
     [Tooltip("Vị trí xuất hiện khi vào Room 3")]
     [SerializeField] private Transform room3SpawnPoint;
     [Tooltip("Vị trí xuất hiện khi vào Room 4")]
@@ -81,12 +83,25 @@ public class RoomManager : MonoBehaviour
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Tiến sang room tiếp theo (dùng cho trigger cửa ra ở map vòng lặp 0-1-2).
+    /// </summary>
+    public void AdvanceToNextRoom()
+    {
+        int next = (int)CurrentRoom + 1;
+        if (next > (int)RoomState.Room5) return;
+        EnterRoom((RoomState)next);
+    }
+
     public void EnterRoom(RoomState room)
     {
         CurrentRoom = room;
         Debug.Log($"[RoomManager] Entered {room}");
 
-        if (room == RoomState.Room3 && room3SpawnPoint != null)
+        // Room 0/1/2 dùng chung map → teleport về đầu map khi bắt đầu Room 1 hoặc Room 2
+        if ((room == RoomState.Room1 || room == RoomState.Room2) && room012SpawnPoint != null)
+            TeleportPlayer(room012SpawnPoint);
+        else if (room == RoomState.Room3 && room3SpawnPoint != null)
             TeleportPlayer(room3SpawnPoint);
         else if (room == RoomState.Room4 && room4SpawnPoint != null)
             TeleportPlayer(room4SpawnPoint);
