@@ -1,5 +1,4 @@
 using UnityEngine;
-using MobileControls;
 
 // Gắn script này vào GameObject đại diện trang sổ / mảnh giấy trong game.
 // Khi player đến gần và bấm E, hiện UI nội dung. Bấm E lần nữa hoặc rời đi để đóng.
@@ -56,12 +55,11 @@ public class NotebookPage : MonoBehaviour
         // Ẩn chức năng khi intro đang hiện
         if (GameObject.Find("_ChapterIntroCanvas_Auto") != null) return;
 
-        bool interactPressed = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+        bool interactPressed = Input.GetKeyDown(KeyCode.E);
 
         if (isPlayerNear && interactPressed)
         {
             ToggleReading();
-            MobileButtons.interactPressed = false;
         }
 
         if (isReading)

@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using MobileControls;
 
 // Gắn script này vào từng cửa thoát ở Room 5.
 // Chỉ 1 cửa đặt isGoodEnding = true → Good Ending.
@@ -65,10 +64,9 @@ public class Room5ExitDoor : MonoBehaviour
 
         if (GameObject.Find("_ChapterIntroCanvas_Auto") != null) return;
 
-        bool interactPressed = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+        bool interactPressed = Input.GetKeyDown(KeyCode.E);
         if (isPlayerNear && interactPressed)
         {
-            MobileButtons.interactPressed = false;
             OnDoorInteract();
         }
     }

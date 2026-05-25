@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -165,23 +166,39 @@ public class RoomManager : MonoBehaviour
     {
         if (player == null) FindPlayer();
         if (player == null) return;
+        StartCoroutine(TeleportRoutine(target));
+    }
 
+    private IEnumerator TeleportRoutine(Transform target)
+    {
+        Rigidbody rb = player.GetComponent<Rigidbody>();
         CharacterController cc = player.GetComponent<CharacterController>();
+
         if (cc != null) cc.enabled = false;
 
-        Rigidbody rb = player.GetComponent<Rigidbody>();
+        // Kinematic trong lúc teleport để physics không can thiệp
         if (rb != null)
         {
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-            // Dùng rb.position để tránh interpolation lag của Rigidbody
+            rb.isKinematic = true;
             rb.position = target.position;
             rb.rotation = target.rotation;
         }
 
-        // Đặt transform sau để đảm bảo camera và các child cũng được cập nhật
         player.position = target.position;
         player.rotation = target.rotation;
+
+        // Chờ 2 FixedUpdate để collider settle, tránh bị wall-push ngay sau teleport
+        yield return new WaitForFixedUpdate();
+        yield return new WaitForFixedUpdate();
+
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
 
         if (cc != null) cc.enabled = true;
     }

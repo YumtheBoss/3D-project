@@ -8,8 +8,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using MobileControls;
-
 #if UNITY_EDITOR
     using UnityEditor;
     using System.Net;
@@ -142,10 +140,6 @@ public class FirstPersonController : MonoBehaviour
         AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1f);
         // -------------------------------
 
-        // Reset joystick ảo trong trường hợp biến static bị kẹt do tắt Playmode hoặc script bị disable
-        MobileJoystick.inputVector = Vector2.zero;
-        MobileButtons.isSprinting = false;
-
         rb = GetComponent<Rigidbody>();
         if (rb == null)
         {
@@ -195,7 +189,7 @@ public class FirstPersonController : MonoBehaviour
     void Start()
     {
         // Chỉ khoá cursor trên PC (mobile không có cursor)
-        if(lockCursor && !Application.isMobilePlatform)
+        if(lockCursor)
         {
             Cursor.lockState = CursorLockMode.Locked;
         }
@@ -256,13 +250,6 @@ public class FirstPersonController : MonoBehaviour
         {
             float inputX = Input.GetAxis("Mouse X");
             float inputY = Input.GetAxis("Mouse Y");
-
-            // Nếu có touch input, sử dụng nó thay thế
-            if (MobileTouchCamera.lookInput != Vector2.zero)
-            {
-                inputX = MobileTouchCamera.lookInput.x * 0.1f; // Giảm độ nhạy touch
-                inputY = MobileTouchCamera.lookInput.y * 0.1f;
-            }
 
             yaw = transform.localEulerAngles.y + inputX * mouseSensitivity;
 
@@ -447,19 +434,6 @@ public class FirstPersonController : MonoBehaviour
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) moveH += 1f;
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveH -= 1f;
 
-            // Mobile Joystick Input (Cộng dồn với PC Input)
-            // KIỂM TRA NGẶT NGHÈO: Chỉ nhận input từ Joystick nếu đang có chạm tay hoặc click chuột
-            if (Application.isMobilePlatform || Input.GetMouseButton(0) || Input.touchCount > 0)
-            {
-                moveH += MobileJoystick.inputVector.x;
-                moveV += MobileJoystick.inputVector.y;
-            }
-            else
-            {
-                // Nếu chơi trên PC mà thả chuột ra, XÓA NGAY LẬP TỨC lực ảo của Joystick
-                MobileJoystick.inputVector = Vector2.zero;
-            }
-
             // Tính toán hướng di chuyển
             Vector3 targetVelocity = new Vector3(moveH, 0, moveV);
             if (targetVelocity.magnitude > 1f) targetVelocity.Normalize();
@@ -476,7 +450,7 @@ public class FirstPersonController : MonoBehaviour
             }
 
             // All movement calculations shile sprint is active
-            bool isSprintInput = Input.GetKey(sprintKey) || MobileButtons.isSprinting;
+            bool isSprintInput = Input.GetKey(sprintKey);
             if (enableSprint && isSprintInput && sprintRemaining > 0f && !isSprintCooldown)
             {
                 targetVelocity = transform.TransformDirection(targetVelocity) * sprintSpeed;

@@ -1,5 +1,4 @@
 using UnityEngine;
-using MobileControls;
 
 namespace AnomalySystem
 {
@@ -65,7 +64,7 @@ namespace AnomalySystem
             }
 
             // Kiểm tra nếu người chơi đang ở gần và bấm phím E (PC) hoặc nút Interact (Mobile)
-            bool isInteractInput = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+            bool isInteractInput = Input.GetKeyDown(KeyCode.E);
             if (isPlayerNear && isInteractInput)
             {
                 // 1. Phát tiếng mở cửa

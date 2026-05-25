@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using MobileControls;
 
 /// <summary>
 /// Quyển sổ bị rách trang trên bàn ở Room 0.
@@ -182,10 +181,9 @@ public class BookPickup : MonoBehaviour
         if (dist <= pickupRange)
         {
             ShowHint();
-            bool input = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+            bool input = Input.GetKeyDown(KeyCode.E);
             if (input)
             {
-                MobileButtons.interactPressed = false;
                 OpenBook();
             }
         }
@@ -225,11 +223,8 @@ public class BookPickup : MonoBehaviour
         ShowPage(currentPage);
 
         Time.timeScale = 0f;
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     private void ShowPage(int index)
@@ -278,11 +273,8 @@ public class BookPickup : MonoBehaviour
         isOpen = false;
         Time.timeScale = 1f;
 
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     // ── UI helpers ───────────────────────────────────────────────

@@ -3,7 +3,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using MobileControls;
 
 namespace GameUI
 {
@@ -84,7 +83,7 @@ namespace GameUI
             if (Input.anyKeyDown) Debug.Log($"[PauseMenu] Phím vừa nhấn: {Input.inputString}");
 
             // Nhấn phím ESC (PC) hoặc nút Pause (Mobile)
-            bool isPauseInput = Input.GetKeyDown(KeyCode.Escape) || MobileButtons.pausePressed;
+            bool isPauseInput = Input.GetKeyDown(KeyCode.Escape);
             if (isPauseInput)
             {
                 Debug.Log("Đã bấm phím ESC!");
@@ -166,11 +165,8 @@ namespace GameUI
             
             if (fpc != null) fpc.cameraCanMove = false;
             
-            if (!Application.isMobilePlatform)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
 
             if (hudPanel != null) hudPanel.SetActive(false);
             if (interactionCanvas != null) interactionCanvas.SetActive(false);
@@ -185,11 +181,8 @@ namespace GameUI
             
             if (fpc != null) fpc.cameraCanMove = true;
             
-            if (!Application.isMobilePlatform)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
 
             if (inventoryPanel != null) inventoryPanel.SetActive(false);
 
@@ -204,12 +197,8 @@ namespace GameUI
             
             if (fpc != null) fpc.cameraCanMove = false;
             
-            // Chỉ thao tác cursor trên PC
-            if (!Application.isMobilePlatform)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
 
             // Ẩn HUD và chữ tương tác khi Pause
             if (hudPanel != null) hudPanel.SetActive(false);
@@ -228,12 +217,8 @@ namespace GameUI
             // Bật lại xoay camera
             if (fpc != null) fpc.cameraCanMove = true;
             
-            // Chỉ thao tác cursor trên PC
-            if (!Application.isMobilePlatform)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
 
             pauseMenuPanel.SetActive(false);
             if (settingsPanel != null) settingsPanel.SetActive(false);

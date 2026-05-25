@@ -1,5 +1,4 @@
 using UnityEngine;
-using MobileControls;
 
 namespace AnomalySystem
 {
@@ -97,8 +96,8 @@ namespace AnomalySystem
                 return;
             }
 
-            bool isInteractInput = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
-            
+            bool isInteractInput = Input.GetKeyDown(KeyCode.E);
+
             if (isPlayerNear && isInteractInput)
             {
                 isReading = !isReading;
@@ -106,9 +105,6 @@ namespace AnomalySystem
                 {
                     instructionUI.SetActive(isReading);
                 }
-                
-                // Reset nút bấm Mobile để không bị dính phím (nếu có)
-                MobileButtons.interactPressed = false;
             }
             
             // Đóng giấy hoặc cất vào túi

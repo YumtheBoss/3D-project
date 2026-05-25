@@ -2,7 +2,6 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using MobileControls;
 
 /// <summary>
 /// Gắn vào một GameObject (mẩu giấy 3D) đặt trong R3.
@@ -108,7 +107,7 @@ public class NotePickup : MonoBehaviour
         {
             // Nhấn phím bất kỳ hoặc chạm màn hình để đóng
             if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) ||
-                Input.GetKeyDown(KeyCode.Escape) || MobileButtons.interactPressed)
+                Input.GetKeyDown(KeyCode.Escape))
             {
                 CloseNote();
             }
@@ -132,9 +131,7 @@ public class NotePickup : MonoBehaviour
             bool hasLight = CheckHasLightSource();
             ShowHint(hasLight);
 
-            // Phím F hoặc E (PC) | interactPressed (Mobile)
-            bool pickupInput = Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) ||
-                               MobileButtons.interactPressed;
+            bool pickupInput = Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E);
 
             if (pickupInput)
             {
@@ -223,12 +220,8 @@ public class NotePickup : MonoBehaviour
         // Dừng thời gian khi đang đọc giấy (tuỳ chọn)
         Time.timeScale = 0f;
 
-        // Hiện con trỏ chuột
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     public void CloseNote()
@@ -241,12 +234,8 @@ public class NotePickup : MonoBehaviour
         // Tiếp tục thời gian
         Time.timeScale = 1f;
 
-        // Khoá lại con trỏ
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         Debug.Log("[NotePickup] Đóng mẩu giấy.");
     }

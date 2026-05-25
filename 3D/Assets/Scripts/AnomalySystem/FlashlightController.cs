@@ -1,7 +1,6 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using MobileControls;
 
 /// <summary>
 /// Script đèn pin điện thoại (single source of truth).
@@ -123,7 +122,7 @@ public class FlashlightController : MonoBehaviour
         // ── Toggle đèn ──
         if (!inputCooldown)
         {
-            bool toggleInput = Input.GetKeyDown(KeyCode.F) || MobileButtons.flashlightPressed;
+            bool toggleInput = Input.GetKeyDown(KeyCode.F);
             if (toggleInput)
             {
                 ToggleFlashlight();

@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using MobileControls;
 
 // Gắn script này vào từng cánh cửa ở Room 2.
 // Một cửa đặt isCorrectDoor = true (phòng có bất thường → chọn đúng → qua Room 3).
@@ -72,11 +71,10 @@ public class Room2Door : MonoBehaviour
 
         if (GameObject.Find("_ChapterIntroCanvas_Auto") != null) return;
 
-        bool interactPressed = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+        bool interactPressed = Input.GetKeyDown(KeyCode.E);
         if (isPlayerNear && interactPressed)
         {
             used = true;
-            MobileButtons.interactPressed = false;
             OnDoorInteract();
         }
     }

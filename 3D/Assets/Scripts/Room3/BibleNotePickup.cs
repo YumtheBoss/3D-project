@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using MobileControls;
 
 /// <summary>
 /// Mảnh ghi chú trong Room 3 — trích từ Kinh Thánh về ánh sáng vs bóng tối.
@@ -95,10 +94,9 @@ public class BibleNotePickup : MonoBehaviour
         if (dist <= pickupRange)
         {
             ShowHint();
-            bool input = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+            bool input = Input.GetKeyDown(KeyCode.E);
             if (input)
             {
-                MobileButtons.interactPressed = false;
                 OpenNote();
             }
         }
@@ -128,12 +126,8 @@ public class BibleNotePickup : MonoBehaviour
 
         notePanelUI.SetActive(true);
         Time.timeScale = 0f;
-
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     public void CloseNote()
@@ -141,12 +135,8 @@ public class BibleNotePickup : MonoBehaviour
         if (notePanelUI != null) notePanelUI.SetActive(false);
         isOpen = false;
         Time.timeScale = 1f;
-
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         // Thay thế đèn: tắt đèn cũ, bật đèn mới (chỉ chạy lần đầu khi hasBeenPickedUp)
         if (lightToReplace != null)    lightToReplace.gameObject.SetActive(false);

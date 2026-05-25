@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using MobileControls;
 
 /// <summary>
 /// Mảnh giấy xé rách trong Room 1.
@@ -154,10 +153,9 @@ public class TornPagePickup : MonoBehaviour
         if (dist <= pickupRange)
         {
             ShowHint();
-            bool input = Input.GetKeyDown(KeyCode.E) || MobileButtons.interactPressed;
+            bool input = Input.GetKeyDown(KeyCode.E);
             if (input)
             {
-                MobileButtons.interactPressed = false;
                 OpenPage();
             }
         }
@@ -192,12 +190,8 @@ public class TornPagePickup : MonoBehaviour
 
         pagePanelUI.SetActive(true);
         Time.timeScale = 0f;
-
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     public void ClosePage()
@@ -205,12 +199,8 @@ public class TornPagePickup : MonoBehaviour
         if (pagePanelUI != null) pagePanelUI.SetActive(false);
         isOpen = false;
         Time.timeScale = 1f;
-
-        if (!Application.isMobilePlatform)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     private void ShowHint()
