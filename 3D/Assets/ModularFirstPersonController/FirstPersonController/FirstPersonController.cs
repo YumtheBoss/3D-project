@@ -240,101 +240,29 @@ public class FirstPersonController : MonoBehaviour
 
     private void Update()
     {
-        // DEBUG: Xóa dòng này sau khi test xong
-        // Debug.Log("FirstPersonController is running...");
-
-        #region Camera
-
-        // Control camera movement
-        if(cameraCanMove)
-        {
-            float inputX = Input.GetAxis("Mouse X");
-            float inputY = Input.GetAxis("Mouse Y");
-
-            yaw = transform.localEulerAngles.y + inputX * mouseSensitivity;
-
-            if (!invertCamera)
-            {
-                pitch -= mouseSensitivity * inputY;
-            }
-            else
-            {
-                // Inverted Y
-                pitch += mouseSensitivity * inputY;
-            }
-
-            // Clamp pitch between lookAngle
-            pitch = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
-
-            transform.localEulerAngles = new Vector3(0, yaw, 0);
-            if (playerCamera != null)
-            {
-                playerCamera.transform.localEulerAngles = new Vector3(pitch, 0, 0);
-            }
-        }
-
-        #region Camera Zoom
+        #region Zoom key detection (input only, no FOV lerp)
 
         if (enableZoom)
         {
-            // Changes isZoomed when key is pressed
-            // Behavior for toogle zoom
             if(Input.GetKeyDown(zoomKey) && !holdToZoom && !isSprinting)
-            {
-                if (!isZoomed)
-                {
-                    isZoomed = true;
-                }
-                else
-                {
-                    isZoomed = false;
-                }
-            }
+                isZoomed = !isZoomed;
 
-            // Changes isZoomed when key is pressed
-            // Behavior for hold to zoom
             if(holdToZoom && !isSprinting)
             {
-                if(Input.GetKeyDown(zoomKey))
-                {
-                    isZoomed = true;
-                }
-                else if(Input.GetKeyUp(zoomKey))
-                {
-                    isZoomed = false;
-                }
-            }
-
-            // Lerps camera.fieldOfView to allow for a smooth transistion
-            if(playerCamera != null)
-            {
-                if(isZoomed)
-                {
-                    playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, zoomFOV, zoomStepTime * Time.deltaTime);
-                }
-                else if(!isZoomed && !isSprinting)
-                {
-                    playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, fov, zoomStepTime * Time.deltaTime);
-                }
+                if(Input.GetKeyDown(zoomKey))      isZoomed = true;
+                else if(Input.GetKeyUp(zoomKey))   isZoomed = false;
             }
         }
 
         #endregion
-        #endregion
 
-        #region Sprint
+        #region Sprint timer + bar
 
         if(enableSprint)
         {
             if(isSprinting)
             {
                 isZoomed = false;
-                if (playerCamera != null)
-                {
-                    playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, sprintFOV, sprintFOVStepTime * Time.deltaTime);
-                }
-
-                // Drain sprint remaining while sprinting
                 if(!unlimitedSprint)
                 {
                     sprintRemaining -= 1 * Time.deltaTime;
@@ -348,26 +276,19 @@ public class FirstPersonController : MonoBehaviour
             }
             else
             {
-                // Regain sprint while not sprinting
                 sprintRemaining = Mathf.Clamp(sprintRemaining += 1 * Time.deltaTime, 0, sprintDuration);
             }
 
-            // Handles sprint cooldown 
-            // When sprint remaining == 0 stops sprint ability until hitting cooldown
             if(isSprintCooldown)
             {
                 sprintCooldown -= 1 * Time.deltaTime;
-                if (sprintCooldown <= 0)
-                {
-                    isSprintCooldown = false;
-                }
+                if (sprintCooldown <= 0) isSprintCooldown = false;
             }
             else
             {
                 sprintCooldown = sprintCooldownReset;
             }
 
-            // Handles sprintBar 
             if(useSprintBar && !unlimitedSprint && sprintBar != null)
             {
                 float sprintRemainingPercent = sprintRemaining / sprintDuration;
@@ -379,11 +300,8 @@ public class FirstPersonController : MonoBehaviour
 
         #region Jump
 
-        // Gets input and calls jump method
         if(enableJump && Input.GetKeyDown(jumpKey) && isGrounded)
-        {
             Jump();
-        }
 
         #endregion
 
@@ -392,10 +310,8 @@ public class FirstPersonController : MonoBehaviour
         if (enableCrouch)
         {
             if(Input.GetKeyDown(crouchKey) && !holdToCrouch)
-            {
                 Crouch();
-            }
-            
+
             if(Input.GetKeyDown(crouchKey) && holdToCrouch)
             {
                 isCrouched = false;
@@ -411,11 +327,44 @@ public class FirstPersonController : MonoBehaviour
         #endregion
 
         CheckGround();
+    }
+
+    // Camera rotation và HeadBob chạy trong LateUpdate để đọc sau khi Rigidbody
+    // đã áp dụng interpolation — tránh giật camera khi di chuyển.
+    private void LateUpdate()
+    {
+        if(cameraCanMove)
+        {
+            float inputX = Input.GetAxis("Mouse X");
+            float inputY = Input.GetAxis("Mouse Y");
+
+            yaw = transform.localEulerAngles.y + inputX * mouseSensitivity;
+
+            if (!invertCamera)
+                pitch -= mouseSensitivity * inputY;
+            else
+                pitch += mouseSensitivity * inputY;
+
+            pitch = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
+
+            transform.localEulerAngles = new Vector3(0, yaw, 0);
+            if (playerCamera != null)
+                playerCamera.transform.localEulerAngles = new Vector3(pitch, 0, 0);
+        }
+
+        // FOV lerp (zoom + sprint)
+        if (playerCamera != null)
+        {
+            if (enableSprint && isSprinting)
+                playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, sprintFOV, sprintFOVStepTime * Time.deltaTime);
+            else if (enableZoom && isZoomed)
+                playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, zoomFOV, zoomStepTime * Time.deltaTime);
+            else
+                playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, fov, zoomStepTime * Time.deltaTime);
+        }
 
         if(enableHeadBob)
-        {
             HeadBob();
-        }
     }
 
     void FixedUpdate()
