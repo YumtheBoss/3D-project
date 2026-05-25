@@ -2,17 +2,26 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Gắn script này vào bất kỳ GameObject nào trong scene.
-/// Khi RoomManager chuyển sang Room 3, tự động phát monologue "hành lang tối — linh cảm xấu"
-/// sau một khoảng delay ngắn. Room 3 là nơi đèn pin bắt đầu có tác dụng với quỷ.
+/// Gắn vào bất kỳ GameObject nào trong scene.
+/// Khi RoomManager chuyển sang Room 3:
+///   - Đèn trắng (#1) bắt đầu nhấp nháy (flickerLight cần có LightFlicker component).
+///   - InnerMonologue entry phát sau startDelay.
 /// </summary>
 public class Room3Starter : MonoBehaviour
 {
-    [Tooltip("InnerMonologue khi bước vào hành lang tối — cảm giác bị theo dõi")]
+    [Header("Monologue")]
+    [Tooltip("InnerMonologue khi bước vào hành lang tối")]
     public InnerMonologue entryMonologue;
 
     [Tooltip("Giây chờ sau khi vào Room 3 trước khi monologue bắt đầu")]
     public float startDelay = 1.5f;
+
+    [Header("Đèn nhấp nháy")]
+    [Tooltip("Đèn trắng #1 — nhấp nháy ngay khi bước vào Room 3")]
+    public LightFlicker flickerLight;
+
+    [Tooltip("Giây chờ trước khi bắt đầu nhấp nháy (ngắn hơn startDelay để tạo atmosphere)")]
+    public float flickerStartDelay = 0.3f;
 
     private void OnEnable()
     {
@@ -27,12 +36,24 @@ public class Room3Starter : MonoBehaviour
     private void HandleRoomEntered(RoomManager.RoomState room)
     {
         if (room == RoomManager.RoomState.Room3)
-            StartCoroutine(PlayAfterDelay());
+            StartCoroutine(StartRoom3());
     }
 
-    private IEnumerator PlayAfterDelay()
+    private IEnumerator StartRoom3()
     {
-        yield return new WaitForSeconds(startDelay);
+        // Đèn nhấp nháy trước
+        if (flickerStartDelay > 0f)
+            yield return new WaitForSeconds(flickerStartDelay);
+
+        flickerLight?.StartFlicker();
+
+        // Monologue sau
+        float remaining = startDelay - flickerStartDelay;
+        if (remaining > 0f)
+            yield return new WaitForSeconds(remaining);
+        else
+            yield return null;
+
         entryMonologue?.PlayManually();
     }
 }

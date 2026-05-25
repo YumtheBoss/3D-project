@@ -25,6 +25,16 @@ public class BibleNotePickup : MonoBehaviour
     public AudioClip pickupSound;
     [Range(0f, 1f)] public float volume = 0.7f;
 
+    [Header("Đèn thứ 2 — thay thế sau khi đọc ghi chú")]
+    [Tooltip("Đèn bị tắt sau khi đóng ghi chú")]
+    public Light lightToReplace;
+
+    [Tooltip("Đèn thay thế bật lên (màu đỏ/cam tối — tạo atmosphere mới)")]
+    public Light replacementLight;
+
+    [Tooltip("Monologue phát sau khi player đóng ghi chú (\"Ánh sáng là vũ khí...\")")]
+    public InnerMonologue postNoteMonologue;
+
     // ── Nội dung ghi chú Room 3 ─────────────────────────────────
     private const string NOTE_CONTENT =
         "<color=#FFCC88><size=110%><b>✝  Kinh Thánh  ✝</b></size></color>\n\n" +
@@ -137,6 +147,12 @@ public class BibleNotePickup : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+
+        // Thay thế đèn: tắt đèn cũ, bật đèn mới (chỉ chạy lần đầu khi hasBeenPickedUp)
+        if (lightToReplace != null)    lightToReplace.gameObject.SetActive(false);
+        if (replacementLight != null)  replacementLight.gameObject.SetActive(true);
+
+        postNoteMonologue?.PlayManually();
     }
 
     private void ShowHint()
