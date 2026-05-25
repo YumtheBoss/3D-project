@@ -146,10 +146,11 @@ public class FirstPersonController : MonoBehaviour
             rb = gameObject.AddComponent<Rigidbody>();
         }
         
-        // Bắt buộc thiết lập các thông số Vật lý chuẩn để nhân vật KHÔNG bị kẹt
         rb.freezeRotation = true;
         rb.useGravity = true;
         rb.isKinematic = false;
+        // Interpolate để render position mượt giữa các bước FixedUpdate — bắt buộc để tránh camera giật
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
 
         if (playerCamera == null)
         {
@@ -158,9 +159,10 @@ public class FirstPersonController : MonoBehaviour
 
         crosshairObject = GetComponentInChildren<Image>();
 
-        // Set internal variables
         if (playerCamera != null) playerCamera.fieldOfView = fov;
         originalScale = transform.localScale;
+        // Khởi tạo yaw từ rotation hiện tại để không bị "nhảy" lần đầu
+        yaw = transform.eulerAngles.y;
         
         // Ngăn user tự gán chính GameObject này làm joint (sẽ gây lỗi dịch chuyển giật lùi về chỗ cũ)
         if (joint == transform)
@@ -240,6 +242,15 @@ public class FirstPersonController : MonoBehaviour
 
     private void Update()
     {
+        // Đọc mouse input mỗi frame để rotation mượt, lưu vào yaw/pitch
+        // Rotation thực sự được apply ở FixedUpdate (body) và LateUpdate (camera)
+        if (cameraCanMove)
+        {
+            yaw   += Input.GetAxis("Mouse X") * mouseSensitivity;
+            pitch += Input.GetAxis("Mouse Y") * mouseSensitivity * (invertCamera ? 1f : -1f);
+            pitch  = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
+        }
+
         #region Zoom key detection (input only, no FOV lerp)
 
         if (enableZoom)
@@ -329,28 +340,11 @@ public class FirstPersonController : MonoBehaviour
         CheckGround();
     }
 
-    // Camera rotation và HeadBob chạy trong LateUpdate để đọc sau khi Rigidbody
-    // đã áp dụng interpolation — tránh giật camera khi di chuyển.
     private void LateUpdate()
     {
-        if(cameraCanMove)
-        {
-            float inputX = Input.GetAxis("Mouse X");
-            float inputY = Input.GetAxis("Mouse Y");
-
-            yaw = transform.localEulerAngles.y + inputX * mouseSensitivity;
-
-            if (!invertCamera)
-                pitch -= mouseSensitivity * inputY;
-            else
-                pitch += mouseSensitivity * inputY;
-
-            pitch = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
-
-            transform.localEulerAngles = new Vector3(0, yaw, 0);
-            if (playerCamera != null)
-                playerCamera.transform.localEulerAngles = new Vector3(pitch, 0, 0);
-        }
+        // Chỉ apply pitch lên camera — body yaw được apply bởi rb.MoveRotation trong FixedUpdate
+        if (cameraCanMove && playerCamera != null)
+            playerCamera.transform.localEulerAngles = new Vector3(pitch, 0, 0);
 
         // FOV lerp (zoom + sprint)
         if (playerCamera != null)
@@ -369,6 +363,9 @@ public class FirstPersonController : MonoBehaviour
 
     void FixedUpdate()
     {
+        // Apply body yaw qua Rigidbody API — không conflict với physics như transform trực tiếp
+        rb.MoveRotation(Quaternion.Euler(0f, yaw, 0f));
+
         #region Movement
 
         if (playerCanMove)
