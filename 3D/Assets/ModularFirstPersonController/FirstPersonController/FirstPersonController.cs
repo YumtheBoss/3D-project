@@ -363,8 +363,9 @@ public class FirstPersonController : MonoBehaviour
 
     void FixedUpdate()
     {
-        // Apply body yaw qua Rigidbody API — không conflict với physics như transform trực tiếp
-        rb.MoveRotation(Quaternion.Euler(0f, yaw, 0f));
+        // Set rotation trực tiếp qua rb.rotation — an toàn vì freezeRotation=true
+        // (MoveRotation trên non-kinematic body có thể block AddForce)
+        rb.rotation = Quaternion.Euler(0f, yaw, 0f);
 
         #region Movement
 
