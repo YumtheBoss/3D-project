@@ -40,8 +40,19 @@ public class RoomExitTrigger : MonoBehaviour
             triggered = false;
         }
 
-        // Room 2 dùng Room2Door thay thế → ẩn trigger này đi
-        gameObject.SetActive(room != RoomManager.RoomState.Room2);
+        // Room 2 dùng DoorChoice thay thế → ẩn trigger này đi
+        // Nhưng chỉ ẩn nếu DoorChoice thực sự có mặt trong scene
+        if (room == RoomManager.RoomState.Room2)
+        {
+            var doorChoice = FindObjectOfType<AnomalySystem.DoorChoice>();
+            if (doorChoice != null)
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+            // Nếu không có DoorChoice, RoomExitTrigger vẫn hoạt động bình thường
+            Debug.Log("[RoomExitTrigger] Room 2: Không có DoorChoice, giữ RoomExitTrigger hoạt động.");
+        }
     }
 
     private void Start()
@@ -56,9 +67,13 @@ public class RoomExitTrigger : MonoBehaviour
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) playerTransform = p.transform;
 
-        // Nếu game bắt đầu ở Room 2, ẩn trigger ngay
+        // Nếu game bắt đầu ở Room 2, ẩn trigger ngay (chỉ khi có DoorChoice)
         if (RoomManager.Instance != null && RoomManager.Instance.CurrentRoom == RoomManager.RoomState.Room2)
-            gameObject.SetActive(false);
+        {
+            var doorChoice = FindObjectOfType<AnomalySystem.DoorChoice>();
+            if (doorChoice != null)
+                gameObject.SetActive(false);
+        }
     }
 
     private void Update()

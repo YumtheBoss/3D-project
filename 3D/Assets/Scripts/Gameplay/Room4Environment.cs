@@ -99,20 +99,29 @@ public class Room4Environment : MonoBehaviour
 
     private void SwapWallPictures()
     {
-        GameObject[] pictures = GameObject.FindGameObjectsWithTag(wallPictureTag);
-        foreach (GameObject pic in pictures)
+        if (string.IsNullOrEmpty(wallPictureTag)) return;
+
+        try
         {
-            if (invertedCrossPrefab != null)
+            GameObject[] pictures = GameObject.FindGameObjectsWithTag(wallPictureTag);
+            foreach (GameObject pic in pictures)
             {
-                // Thay thế bằng prefab mới ở cùng vị trí/rotation
-                Instantiate(invertedCrossPrefab, pic.transform.position, pic.transform.rotation, pic.transform.parent);
-                pic.SetActive(false);
+                if (invertedCrossPrefab != null)
+                {
+                    // Thay thế bằng prefab mới ở cùng vị trí/rotation
+                    Instantiate(invertedCrossPrefab, pic.transform.position, pic.transform.rotation, pic.transform.parent);
+                    pic.SetActive(false);
+                }
+                else if (invertedCrossMaterial != null)
+                {
+                    Renderer r = pic.GetComponent<Renderer>();
+                    if (r != null) r.material = invertedCrossMaterial;
+                }
             }
-            else if (invertedCrossMaterial != null)
-            {
-                Renderer r = pic.GetComponent<Renderer>();
-                if (r != null) r.material = invertedCrossMaterial;
-            }
+        }
+        catch (UnityEngine.UnityException e)
+        {
+            Debug.LogWarning($"[Room4Environment] Bỏ qua đổi tranh vì tag '{wallPictureTag}' chưa được tạo/định nghĩa trong Unity Editor: {e.Message}");
         }
     }
 }

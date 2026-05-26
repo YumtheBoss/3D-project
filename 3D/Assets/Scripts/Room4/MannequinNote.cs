@@ -50,6 +50,7 @@ public class MannequinNote : MonoBehaviour
     private bool hasBeenRead = false;
     private Transform playerTransform;
     private AudioSource audioSource;
+    private bool isHintShown = false;
 
     private void Start()
     {
@@ -67,6 +68,12 @@ public class MannequinNote : MonoBehaviour
 
     private void Update()
     {
+        if (playerTransform == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) playerTransform = p.transform;
+        }
+
         if (isOpen)
         {
             if (Input.GetKeyDown(KeyCode.Escape)) CloseNote();
@@ -78,12 +85,21 @@ public class MannequinNote : MonoBehaviour
         float dist = Vector3.Distance(transform.position, playerTransform.position);
         if (dist <= pickupRange)
         {
-            ShowHint();
+            if (!isHintShown)
+            {
+                isHintShown = true;
+                ShowHint();
+            }
+
             if (Input.GetKeyDown(KeyCode.E)) OpenNote();
         }
         else
         {
-            HideHint();
+            if (isHintShown)
+            {
+                isHintShown = false;
+                HideHint();
+            }
         }
     }
 
@@ -91,6 +107,9 @@ public class MannequinNote : MonoBehaviour
     {
         isOpen = true;
         HideHint();
+
+        // Thêm Tờ Giấy Cảnh Báo vào túi đồ
+        AnomalySystem.InventoryManager.Instance?.AddItem("MannequinNote_Room4");
 
         if (pickupSound != null && audioSource != null)
             audioSource.PlayOneShot(pickupSound, volume);
@@ -105,6 +124,8 @@ public class MannequinNote : MonoBehaviour
 
     public void CloseNote()
     {
+        if (!isOpen) return;
+
         if (notePanelUI != null) notePanelUI.SetActive(false);
         isOpen = false;
         Time.timeScale = 1f;
@@ -116,6 +137,9 @@ public class MannequinNote : MonoBehaviour
             hasBeenRead = true;
             postReadMonologue?.PlayManually();
         }
+
+        // Biến mất hoàn toàn sau khi nhặt/đọc xong
+        gameObject.SetActive(false);
     }
 
     private void ShowHint()

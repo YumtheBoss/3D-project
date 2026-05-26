@@ -31,6 +31,16 @@ public class BibleNotePickup : MonoBehaviour
     [Tooltip("Đèn thay thế bật lên (màu đỏ/cam tối — tạo atmosphere mới)")]
     public Light replacementLight;
 
+    [Header("Đèn đổi màu (Theo yêu cầu mới)")]
+    [Tooltip("Đèn sẽ tự động chuyển màu sau khi nhặt giấy")]
+    public Light lightToChangeColor;
+    [Tooltip("Màu sắc muốn đổi cho đèn")]
+    public Color targetColor = Color.red;
+
+    [Header("Cửa vào Room 3 (Theo yêu cầu mới)")]
+    [Tooltip("Cánh cửa ban đầu người chơi đi vào (để khóa không cho tương tác nữa)")]
+    public GameObject entryDoor;
+
     [Tooltip("Monologue phát sau khi player đóng ghi chú (\"Ánh sáng là vũ khí...\")")]
     public InnerMonologue postNoteMonologue;
 
@@ -65,9 +75,13 @@ public class BibleNotePickup : MonoBehaviour
     private bool isOpen = false;
     private Transform playerTransform;
     private AudioSource audioSource;
+    private bool isHintShown = false;
 
     private void Start()
     {
+        // Điều chỉnh range về 2.5 theo yêu cầu của bạn
+        pickupRange = 2.5f;
+
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) playerTransform = p.transform;
 
@@ -82,6 +96,22 @@ public class BibleNotePickup : MonoBehaviour
 
     private void Update()
     {
+        if (playerTransform == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) playerTransform = p.transform;
+        }
+
+        // Tự động sửa lỗi room nếu bị desync hoặc load trực tiếp từ Editor (từ Room0 thành Room3)
+        if (RoomManager.Instance != null && RoomManager.Instance.CurrentRoom == RoomManager.RoomState.Room0)
+        {
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Hospital"))
+            {
+                Debug.LogWarning("[BibleNotePickup] Phát hiện RoomManager bị lệch trạng thái (Room0 ở scene Hospital). Tự động cập nhật thành Room3!");
+                RoomManager.Instance.NotifyRoomEntered(RoomManager.RoomState.Room3);
+            }
+        }
+
         if (isOpen)
         {
             if (Input.GetKeyDown(KeyCode.Escape)) CloseNote();
@@ -90,10 +120,28 @@ public class BibleNotePickup : MonoBehaviour
 
         if (hasBeenPickedUp || playerTransform == null) return;
 
-        float dist = Vector3.Distance(transform.position, playerTransform.position);
+        // Định vị vị trí thực của Visual Mesh (do pivot point của model cha bị lệch 7m trong file scene)
+        Transform visualTransform = transform;
+        MeshRenderer mr = GetComponentInChildren<MeshRenderer>();
+        if (mr != null) visualTransform = mr.transform;
+
+        float dist = Vector3.Distance(visualTransform.position, playerTransform.position);
+
+        // Debug log khi đứng gần tờ giấy (khoảng 7m)
+        if (dist <= 7f)
+        {
+            string rmName = RoomManager.Instance != null ? RoomManager.Instance.CurrentRoom.ToString() : "NULL";
+            Debug.Log($"[DEBUG-BibleNote] Player near. RoomManager: {rmName}, dist (visual): {dist:F2}, range: {pickupRange}");
+        }
+
         if (dist <= pickupRange)
         {
-            ShowHint();
+            if (!isHintShown)
+            {
+                isHintShown = true;
+                ShowHint();
+            }
+
             bool input = Input.GetKeyDown(KeyCode.E);
             if (input)
             {
@@ -102,7 +150,11 @@ public class BibleNotePickup : MonoBehaviour
         }
         else
         {
-            HideHint();
+            if (isHintShown)
+            {
+                isHintShown = false;
+                HideHint();
+            }
         }
     }
 
@@ -111,6 +163,9 @@ public class BibleNotePickup : MonoBehaviour
         hasBeenPickedUp = true;
         isOpen = true;
         HideHint();
+
+        // Thêm Trang Kinh Thánh vào túi đồ
+        AnomalySystem.InventoryManager.Instance?.AddItem("BibleNote_Room3");
 
         if (pickupSound != null && audioSource != null)
             audioSource.PlayOneShot(pickupSound, volume);
@@ -132,6 +187,8 @@ public class BibleNotePickup : MonoBehaviour
 
     public void CloseNote()
     {
+        if (!isOpen) return;
+
         if (notePanelUI != null) notePanelUI.SetActive(false);
         isOpen = false;
         Time.timeScale = 1f;
@@ -142,7 +199,35 @@ public class BibleNotePickup : MonoBehaviour
         if (lightToReplace != null)    lightToReplace.gameObject.SetActive(false);
         if (replacementLight != null)  replacementLight.gameObject.SetActive(true);
 
+        // Đèn đổi màu (Theo yêu cầu mới)
+        if (lightToChangeColor != null)
+        {
+            lightToChangeColor.color = targetColor;
+        }
+
+        // Khóa cánh cửa vào ban đầu (Theo yêu cầu mới)
+        if (entryDoor != null)
+        {
+            // Tắt Collider để chặn đi qua/tương tác vật lý
+            Collider col = entryDoor.GetComponent<Collider>();
+            if (col != null) col.enabled = false;
+
+            // Tắt các script tương tác cửa
+            MonoBehaviour[] scripts = entryDoor.GetComponents<MonoBehaviour>();
+            foreach (var script in scripts)
+            {
+                if (script == null) continue;
+                if (script.GetType().Name.Contains("Door") || script.GetType().Name.Contains("Interact"))
+                {
+                    script.enabled = false;
+                }
+            }
+        }
+
         postNoteMonologue?.PlayManually();
+
+        // Biến mất hoàn toàn sau khi nhặt/đọc xong
+        gameObject.SetActive(false);
     }
 
     private void ShowHint()

@@ -43,6 +43,7 @@ public class InnerMonologue : MonoBehaviour
 
     private bool hasTriggered = false;
     private bool isRunning = false;
+    public bool IsRunning => isRunning;
     private Coroutine activeRoutine;
 
     private void Awake()

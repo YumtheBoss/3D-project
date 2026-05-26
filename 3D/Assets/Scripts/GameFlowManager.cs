@@ -45,10 +45,24 @@ public class GameFlowManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
         else { Destroy(gameObject); return; }
+
+        // Vô hiệu hóa GameFlowManager nếu sử dụng hệ thống RoomManager mới để tránh xung đột
+        if (FindObjectOfType<RoomManager>() != null)
+        {
+            Debug.Log("[GameFlowManager] Phát hiện RoomManager hoạt động. Tắt GameFlowManager!");
+            enabled = false;
+        }
     }
 
     private void Start()
     {
+        if (RoomManager.Instance != null || FindObjectOfType<RoomManager>() != null)
+        {
+            Debug.Log("[GameFlowManager] Bỏ qua Start: RoomManager mới đang hoạt động.");
+            enabled = false;
+            return;
+        }
+
         int saved = PlayerPrefs.GetInt("CurrentRoom", (int)firstRoomInScene);
         currentRoom = (RoomStage)Mathf.Clamp(saved, (int)firstRoomInScene, (int)lastRoomInScene);
         EnterRoom(currentRoom, teleport: true);

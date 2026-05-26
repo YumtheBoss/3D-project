@@ -22,6 +22,7 @@ public class Room2Door : MonoBehaviour
     private bool isPlayerNear = false;
     private bool used = false;
     private Transform playerTransform;
+    private float cooldownTimer = 0f; // Thời gian chờ sau khi vào Room 2 trước khi cho phép tương tác
 
     private void OnEnable()
     {
@@ -36,7 +37,11 @@ public class Room2Door : MonoBehaviour
     private void HandleRoomEntered(RoomManager.RoomState room)
     {
         // Reset mỗi khi vào Room 2 để player có thể tương tác lại nếu retry
-        if (room == RoomManager.RoomState.Room2) used = false;
+        if (room == RoomManager.RoomState.Room2)
+        {
+            used = false;
+            cooldownTimer = 1.0f; // Chờ 1 giây sau khi vào Room 2 mới cho phép mở cửa
+        }
     }
 
     private void Start()
@@ -50,6 +55,13 @@ public class Room2Door : MonoBehaviour
     private void Update()
     {
         if (used) return;
+
+        // Đếm ngược cooldown
+        if (cooldownTimer > 0f)
+        {
+            cooldownTimer -= Time.deltaTime;
+            return;
+        }
 
         if (playerTransform == null)
         {

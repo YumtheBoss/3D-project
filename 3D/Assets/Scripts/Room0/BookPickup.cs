@@ -146,6 +146,13 @@ public class BookPickup : MonoBehaviour
             hasBeenPickedUp = false;
             SetMeshVisible(true);
             pickupGlow?.RestartGlow();
+
+            // Reset túi đồ khi bắt đầu game mới
+            if (AnomalySystem.InventoryManager.Instance != null)
+            {
+                AnomalySystem.InventoryManager.Instance.ClearInventory();
+                AnomalySystem.InventoryManager.Instance.SetTeddyBearEquipped(false);
+            }
         }
         else if (room == RoomManager.RoomState.Room1 || room == RoomManager.RoomState.Room2)
         {
@@ -204,6 +211,9 @@ public class BookPickup : MonoBehaviour
         HideHint();
         PlaySound(pickupSound);
         pickupGlow?.StopGlow();
+
+        // Thêm Sổ Nhật Ký vào túi đồ
+        AnomalySystem.InventoryManager.Instance?.AddItem("Book");
 
         if (!bookEventFired)
         {

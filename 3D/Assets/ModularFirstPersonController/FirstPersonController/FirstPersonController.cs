@@ -15,6 +15,8 @@ using UnityEngine.UI;
 
 public class FirstPersonController : MonoBehaviour
 {
+    public static FirstPersonController Instance { get; private set; }
+
     private Rigidbody rb;
 
     #region Camera Movement Variables
@@ -132,6 +134,16 @@ public class FirstPersonController : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Debug.Log("[FirstPersonController] Duplicate player detected in Awake. Destroying self!");
+            gameObject.tag = "Untagged";
+            gameObject.SetActive(false);
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
         // Persist qua scene Room5
         DontDestroyOnLoad(gameObject);
 
@@ -185,6 +197,29 @@ public class FirstPersonController : MonoBehaviour
         {
             sprintRemaining = sprintDuration;
             sprintCooldownReset = sprintCooldown;
+        }
+    }
+
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (scene.name == "MainMenu")
+        {
+            Debug.Log("[FirstPersonController] MainMenu loaded. Destroying persistent player!");
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+            Destroy(gameObject);
         }
     }
 

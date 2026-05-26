@@ -198,6 +198,11 @@ namespace GameUI
                 hoverAsset.SetActive(false);
             }
         }
+
+        public ItemData GetItem()
+        {
+            return currentItem;
+        }
     }
 }
 

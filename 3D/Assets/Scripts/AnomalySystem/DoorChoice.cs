@@ -74,14 +74,42 @@ namespace AnomalySystem
                 }
 
                 // 2. Chuyển màn chơi
-                if (GameFlowManager.Instance != null)
+                isPlayerNear = false;
+
+                // Ưu tiên dùng GameFlowManager nếu đang hoạt động
+                if (GameFlowManager.Instance != null && GameFlowManager.Instance.enabled)
                 {
-                    isPlayerNear = false;
                     GameFlowManager.Instance.OnRoom2DoorChoice(isAnomalyDoor);
+                }
+                // Fallback: dùng RoomManager (hệ thống mới)
+                else if (RoomManager.Instance != null)
+                {
+                    // Kiểm tra chọn đúng cửa thông qua AnomalyManager
+                    AnomalyManager am = FindObjectOfType<AnomalyManager>();
+                    if (am != null)
+                    {
+                        bool correct = (isAnomalyDoor == am.isCurrentLevelAnomaly);
+                        if (correct)
+                        {
+                            Debug.Log("[DoorChoice] Chọn đúng cửa! Chuyển sang Room 3 qua RoomManager.");
+                            RoomManager.Instance.EnterRoom(RoomManager.RoomState.Room3);
+                        }
+                        else
+                        {
+                            Debug.Log("[DoorChoice] Chọn sai cửa! Game Over.");
+                            RoomManager.Instance.TriggerBadEnding("Chọn sai cửa ở Room 2");
+                        }
+                    }
+                    else
+                    {
+                        // Không có AnomalyManager → cửa bình thường đi thẳng
+                        Debug.Log("[DoorChoice] Không có AnomalyManager, chuyển thẳng sang Room 3.");
+                        RoomManager.Instance.EnterRoom(RoomManager.RoomState.Room3);
+                    }
                 }
                 else
                 {
-                    Debug.LogError("[DoorChoice] Không tìm thấy GameFlowManager.Instance trong scene!");
+                    Debug.LogError("[DoorChoice] Không tìm thấy GameFlowManager hoặc RoomManager!");
                 }
             }
         }

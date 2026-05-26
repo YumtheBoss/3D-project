@@ -13,6 +13,24 @@ namespace AnomalySystem
         [Tooltip("Kéo thả tất cả các ScriptableObject ItemData vào đây")]
         public List<ItemData> itemDatabase = new List<ItemData>();
 
+        public static event System.Action OnEquippedStateChanged;
+
+        public bool IsTeddyBearEquipped
+        {
+            get => PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
+            private set
+            {
+                PlayerPrefs.SetInt("IsTeddyBearEquipped", value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        public void SetTeddyBearEquipped(bool equipped)
+        {
+            IsTeddyBearEquipped = equipped;
+            OnEquippedStateChanged?.Invoke();
+        }
+
         private void Awake()
         {
             if (Instance == null)
@@ -86,7 +104,41 @@ namespace AnomalySystem
                     return item;
                 }
             }
-            return null;
+
+            // Tự động sinh dữ liệu tại runtime nếu chưa được tạo/gán trong Editor
+            ItemData fallbackItem = ScriptableObject.CreateInstance<ItemData>();
+            fallbackItem.itemID = itemID;
+
+            switch (itemID)
+            {
+                case "Book":
+                    fallbackItem.itemName = "Sổ Nhật Ký";
+                    fallbackItem.itemDescription = "Quyển sổ cũ kỹ ghi lại hành trình của một người đi trước. Chứa đựng nhiều manh mối quan trọng về quy luật vòng lặp.";
+                    break;
+                case "TornPage_Room1":
+                    fallbackItem.itemName = "Mảnh Giấy Xé Rách";
+                    fallbackItem.itemDescription = "Mảnh giấy cảnh báo rằng cánh cửa kia không phải lối ra, mà là một vòng lặp. Cần phải quan sát thật kỹ sự thay đổi khi bước qua.";
+                    break;
+                case "BibleNote_Room3":
+                    fallbackItem.itemName = "Trang Kinh Thánh";
+                    fallbackItem.itemDescription = "\"Sự sáng chiếu trong tối tăm, và tối tăm không tiếp nhận sự sáng.\" Nguồn sáng chính là vũ khí duy nhất để sinh tồn.";
+                    break;
+                case "MannequinNote_Room4":
+                    fallbackItem.itemName = "Tờ Giấy Cảnh Báo";
+                    fallbackItem.itemDescription = "Ghi chú khẩn thiết từ mười hai người đi trước: hãy chạy thật nhanh qua cánh cửa cuối cùng và TUYỆT ĐỐI ĐỪNG NHÌN LẠI!";
+                    break;
+                case "TeddyBear":
+                    fallbackItem.itemName = "Gấu Bông Phát Sáng";
+                    fallbackItem.itemDescription = "Con gấu bông kỳ bí tỏa ra ánh sáng ấm áp. Trang bị con gấu để tạo ra một lá chắn ánh sáng bảo vệ bản thân và xua đuổi các linh hồn tà ác xung quanh.";
+                    break;
+                default:
+                    fallbackItem.itemName = itemID;
+                    fallbackItem.itemDescription = "Một vật phẩm thu thập được trong quá trình chơi.";
+                    break;
+            }
+
+            return fallbackItem;
         }
+
     }
 }
