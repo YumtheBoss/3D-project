@@ -83,10 +83,15 @@ Không cần thay đổi gì thêm trong Inspector nếu đã setup trước đ�
 
 ### Các bước chuẩn bị:
 
-#### 4a. NavMesh
-1. Mở **Window → AI → Navigation**.
-2. Chọn tất cả geometry tầng 1, tầng 2 — đánh dấu **Navigation Static**.
-3. Bake NavMesh riêng biệt cho từng tầng (đảm bảo không có liên kết giữa 2 tầng).
+#### 4a. NavMesh (Dành cho Unity 6 - Sử dụng AI Navigation Package)
+1. Tạo một Empty GameObject trong scene, đặt tên là `NavMesh_Floor1`.
+2. Add Component → **NavMesh Surface**.
+3. Trong component **NavMesh Surface**:
+   * Chọn **Agent Type** là `Humanoid` (hoặc Agent tương ứng với con Quỷ).
+   * Tại mục **Collect Objects**, chọn **Volume** và kéo dãn Bounds hình hộp để bao trọn tầng 1 (để giới hạn lưới đi lại riêng biệt). Hoặc bạn có thể chọn **All Game Objects** để nướng toàn bộ nếu không lo quỷ đi nhầm tầng.
+   * Để bỏ qua những vật thể không muốn làm sàn đi lại (như Player, Trigger), hãy chọn loại trừ layer của chúng trong phần **Include Layers**.
+4. Nhấn nút **Bake** ngay trên component `NavMesh Surface` để nướng lưới di chuyển màu xanh dương.
+5. Thực hiện tương tự bằng cách tạo `NavMesh_Floor2` cho tầng 2 để nướng độc lập cho tầng 2.
 
 #### 4b. Tạo Demon_Floor1
 1. Kéo prefab quỷ vào scene, đặt tên `Demon_Floor1`.

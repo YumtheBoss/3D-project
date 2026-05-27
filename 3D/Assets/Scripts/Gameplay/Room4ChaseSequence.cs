@@ -65,6 +65,18 @@ public class Room4ChaseSequence : MonoBehaviour
         if (exitTrigger   != null) exitTrigger.enabled = false;
     }
 
+    private void Start()
+    {
+        if (playerController == null)
+        {
+            playerController = FindObjectOfType<FirstPersonController>();
+            if (playerController != null)
+            {
+                Debug.Log("[Room4ChaseSequence] Automatically assigned playerController dynamically!");
+            }
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TRIGGER — player bước vào hành lang
     // ═══════════════════════════════════════════════════════════

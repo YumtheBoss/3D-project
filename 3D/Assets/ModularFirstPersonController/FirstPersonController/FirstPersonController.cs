@@ -136,15 +136,16 @@ public class FirstPersonController : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Debug.Log("[FirstPersonController] Duplicate player detected in Awake. Destroying self!");
-            gameObject.tag = "Untagged";
-            gameObject.SetActive(false);
-            Destroy(gameObject);
-            return;
+            Debug.Log("[FirstPersonController] Duplicate player detected in Awake. Destroying the old persistent player to reset player GO in the new scene!");
+            Destroy(Instance.gameObject);
+            Instance = this;
         }
-        Instance = this;
+        else
+        {
+            Instance = this;
+        }
 
-        // Persist qua scene Room5
+        // Persist qua các scene tiếp theo
         DontDestroyOnLoad(gameObject);
 
         // --- ĐỌC CÀI ĐẶT (SETTINGS) ---

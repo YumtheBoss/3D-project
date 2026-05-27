@@ -305,19 +305,22 @@ public class RoomManager : MonoBehaviour
 
     private void FindPlayer()
     {
-        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
         GameObject playerObj = null;
 
-        if (players.Length > 1)
+        // 1. Ưu tiên sử dụng FirstPersonController.Instance để xác định chính xác người chơi persistent (DontDestroyOnLoad)
+        if (FirstPersonController.Instance != null)
         {
-            Debug.LogWarning($"[RoomManager] Found multiple ({players.Length}) players in the scene! Cleaning up duplicates...");
+            playerObj = FirstPersonController.Instance.gameObject;
+        }
+
+        // 2. Tìm các đối tượng có tag "Player" trong scene để quét dọn bản sao cục bộ dư thừa
+        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+        if (players.Length > 0)
+        {
             foreach (GameObject p in players)
             {
-                if (p.scene.name == "DontDestroyOnLoad")
-                {
-                    playerObj = p;
-                }
-                else
+                // Nếu tìm thấy một đối tượng có tag "Player" nhưng không khớp với Instance chính chủ, ta hủy nó đi
+                if (playerObj != null && p != playerObj)
                 {
                     Debug.Log($"[RoomManager] Destroying duplicate scene-local player '{p.name}' in scene '{p.scene.name}'");
                     p.tag = "Untagged";
@@ -329,10 +332,6 @@ public class RoomManager : MonoBehaviour
             {
                 playerObj = players[0];
             }
-        }
-        else if (players.Length == 1)
-        {
-            playerObj = players[0];
         }
 
         if (playerObj == null)
@@ -400,23 +399,52 @@ public class RoomManager : MonoBehaviour
 
     private IEnumerator TeleportRoutine(Transform target)
     {
+        // Chờ 1 frame đầu tiên sau khi load scene để Unity đăng ký đầy đủ hệ thống Physics và Collider của scene mới
+        yield return null;
+
         Rigidbody rb = player.GetComponent<Rigidbody>();
         CharacterController cc = player.GetComponent<CharacterController>();
 
         if (cc != null) cc.enabled = false;
 
+        RigidbodyInterpolation originalInterpolation = RigidbodyInterpolation.None;
+
+        // Tính toán vị trí spawn thông minh bằng Raycast từ trên xuống dưới
+        // Quét mặt sàn thực tế để đặt chân người chơi đứng chính xác trên sàn (+0.02m để an toàn),
+        // tránh lún sàn (gây kẹt di chuyển) và cũng không bị nhô cao quá chạm trần.
+        Vector3 spawnPosition = target.position;
+        float playerHalfHeight = 1.643f; // Chiều cao Capsule (2.0) * Scale Y (1.6429813) / 2
+        Vector3 rayOrigin = target.position + Vector3.up * 0.1f; // Bắt đầu quét từ 10cm trên điểm spawn để đảm bảo nằm dưới trần nhà
+
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 5.0f))
+        {
+            spawnPosition = new Vector3(target.position.x, hit.point.y + playerHalfHeight + 0.02f, target.position.z);
+            Debug.Log($"[RoomManager] Raycast tìm thấy sàn tại Y={hit.point.y}. Đặt vị trí người chơi tại Y={spawnPosition.y}");
+        }
+        else
+        {
+            // Dự phòng nếu không tìm thấy sàn
+            spawnPosition = target.position + Vector3.up * 0.02f;
+            Debug.LogWarning($"[RoomManager] Không tìm thấy sàn bằng Raycast dưới {target.name}. Dùng vị trí mặc định + 0.02m.");
+        }
+
         // Kinematic trong lúc teleport để physics không can thiệp
         if (rb != null)
         {
+            originalInterpolation = rb.interpolation;
+            rb.interpolation = RigidbodyInterpolation.None; // Tắt tạm thời interpolation để tránh lỗi nội suy vị trí giữa 2 scene cực xa
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.isKinematic = true;
-            rb.position = target.position;
+            rb.position = spawnPosition;
             rb.rotation = target.rotation;
         }
 
-        player.position = target.position;
+        player.position = spawnPosition;
         player.rotation = target.rotation;
+
+        // Đồng bộ Transform ngay lập tức với hệ thống Physics
+        Physics.SyncTransforms();
 
         // Chờ 2 FixedUpdate để collider settle, tránh bị wall-push ngay sau teleport
         yield return new WaitForFixedUpdate();
@@ -427,7 +455,10 @@ public class RoomManager : MonoBehaviour
             rb.isKinematic = false;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
+            rb.interpolation = originalInterpolation; // Khôi phục lại interpolation ban đầu
         }
+
+        Physics.SyncTransforms();
 
         if (cc != null) cc.enabled = true;
     }
