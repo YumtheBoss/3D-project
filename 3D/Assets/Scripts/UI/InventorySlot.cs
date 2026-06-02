@@ -148,8 +148,14 @@ namespace GameUI
                 // Đổi nền thành màu "có đồ"
                 if (backgroundImage != null) backgroundImage.color = filledColor;
 
-                // Ưu tiên 1: Dùng Prefab
-                if (item.itemPrefab != null)
+                // Ưu tiên 1: Dùng Icon 2D (Để hiển thị icon trên giao diện UI)
+                if (item.itemIcon != null && iconImage != null)
+                {
+                    iconImage.sprite = item.itemIcon;
+                    iconImage.gameObject.SetActive(true);
+                }
+                // Ưu tiên 2: Dùng Prefab (Dự phòng nếu không có Icon 2D)
+                else if (item.itemPrefab != null)
                 {
                     if (iconImage != null) iconImage.gameObject.SetActive(false);
                     spawnedPrefab = Instantiate(item.itemPrefab, transform);
@@ -162,12 +168,6 @@ namespace GameUI
                         rt.offsetMin = Vector2.zero;
                         rt.offsetMax = Vector2.zero;
                     }
-                }
-                // Ưu tiên 2: Dùng Icon 2D
-                else if (item.itemIcon != null && iconImage != null)
-                {
-                    iconImage.sprite = item.itemIcon;
-                    iconImage.gameObject.SetActive(true);
                 }
                 else
                 {

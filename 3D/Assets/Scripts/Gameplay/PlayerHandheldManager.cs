@@ -221,6 +221,17 @@ public class PlayerHandheldManager : MonoBehaviour
 
     private void CreateBearVisual()
     {
+        // Tự động tìm kiếm teddyBearPrefab từ InventoryManager database nếu bị null
+        if (teddyBearPrefab == null && InventoryManager.Instance != null)
+        {
+            var bearData = InventoryManager.Instance.GetItemData("TeddyBear");
+            if (bearData != null && bearData.itemPrefab != null)
+            {
+                teddyBearPrefab = bearData.itemPrefab;
+                Debug.Log("[PlayerHandheldManager] Tự động tìm thấy TeddyBear Prefab từ InventoryManager Database!");
+            }
+        }
+
         Transform playerCameraTransform = GetCameraTransform();
 
         equippedBearVisual = new GameObject("_EquippedBearVisual");

@@ -616,6 +616,30 @@ public class RoomManager : MonoBehaviour
                 // Nếu tìm thấy một đối tượng có tag "Player" nhưng không khớp với Instance chính chủ, ta hủy nó đi
                 if (playerObj != null && p != playerObj)
                 {
+                    // TRƯỚC KHI HỦY: Hãy sao chép cấu hình PlayerHandheldManager từ player bị hủy sang player chính chủ!
+                    var localHandheld = p.GetComponentInChildren<PlayerHandheldManager>();
+                    if (localHandheld != null)
+                    {
+                        Camera mainPlayerCam = playerObj.GetComponentInChildren<Camera>();
+                        if (mainPlayerCam != null)
+                        {
+                            var mainHandheld = mainPlayerCam.GetComponent<PlayerHandheldManager>();
+                            if (mainHandheld == null)
+                            {
+                                mainHandheld = mainPlayerCam.gameObject.AddComponent<PlayerHandheldManager>();
+                            }
+                            
+                            // Sao chép các trường cấu hình
+                            mainHandheld.teddyBearPrefab = localHandheld.teddyBearPrefab;
+                            mainHandheld.bearPositionOffset = localHandheld.bearPositionOffset;
+                            mainHandheld.bearRotationOffset = localHandheld.bearRotationOffset;
+                            mainHandheld.bearScaleMultiplier = localHandheld.bearScaleMultiplier;
+                            mainHandheld.turnOnSound = localHandheld.turnOnSound;
+                            mainHandheld.turnOffSound = localHandheld.turnOffSound;
+                            Debug.Log($"[RoomManager] Đã sao chép cấu hình PlayerHandheldManager từ Player cục bộ bị hủy ({p.name}) sang Player chính chủ!");
+                        }
+                    }
+
                     Debug.Log($"[RoomManager] Destroying duplicate scene-local player '{p.name}' in scene '{p.scene.name}'");
                     p.tag = "Untagged";
                     p.SetActive(false);
