@@ -61,7 +61,63 @@ namespace AnomalySystem
                 return;
             }
             
+            PopulateDatabaseFromResources();
             LoadInventory();
+        }
+
+        private void PopulateDatabaseFromResources()
+        {
+            if (itemDatabase == null)
+            {
+                itemDatabase = new List<ItemData>();
+            }
+
+            // Tự động quét và nạp các ItemData từ thư mục Resources/Items
+            ItemData[] resourcesItems = Resources.LoadAll<ItemData>("Items");
+            foreach (var item in resourcesItems)
+            {
+                if (item != null)
+                {
+                    // Tránh nạp trùng lặp
+                    bool exists = false;
+                    foreach (var dbItem in itemDatabase)
+                    {
+                        if (dbItem != null && dbItem.itemID == item.itemID)
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists)
+                    {
+                        itemDatabase.Add(item);
+                    }
+                }
+            }
+
+            // Quét thêm ở gốc Resources đề phòng
+            ItemData[] rootItems = Resources.LoadAll<ItemData>("");
+            foreach (var item in rootItems)
+            {
+                if (item != null)
+                {
+                    bool exists = false;
+                    foreach (var dbItem in itemDatabase)
+                    {
+                        if (dbItem != null && dbItem.itemID == item.itemID)
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists)
+                    {
+                        itemDatabase.Add(item);
+                    }
+                }
+            }
+
+            Debug.Log($"[InventoryManager] Tự động tải thành công {itemDatabase.Count} vật phẩm từ Resources!");
         }
 
         public void AddItem(string itemID)
@@ -114,6 +170,11 @@ namespace AnomalySystem
         // Lấy thông tin chi tiết của vật phẩm từ ID
         public ItemData GetItemData(string itemID)
         {
+            if (itemDatabase == null || itemDatabase.Count == 0)
+            {
+                PopulateDatabaseFromResources();
+            }
+
             foreach (var item in itemDatabase)
             {
                 if (item != null && item.itemID == itemID)
