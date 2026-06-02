@@ -53,6 +53,10 @@ public class PlayerHandheldManager : MonoBehaviour
 
     private Transform GetCameraTransform()
     {
+        // 0. Nếu component này được gắn trực tiếp trên đối tượng có Camera
+        Camera thisCam = GetComponent<Camera>();
+        if (thisCam != null) return thisCam.transform;
+
         // 1. Thử lấy camera từ FirstPersonController
         if (FirstPersonController.Instance != null && FirstPersonController.Instance.playerCamera != null)
         {
@@ -219,6 +223,42 @@ public class PlayerHandheldManager : MonoBehaviour
         ScanAndDamageDemons();
     }
 
+    private void LateUpdate()
+    {
+        // Khoá cứng vị trí/góc xoay gấu bông theo Camera trong LateUpdate (chạy sau khi FirstPersonController xoay pitch)
+        Transform camTrans = GetCameraTransform();
+        if (camTrans != null && equippedBearVisual != null && equippedBearVisual.activeSelf)
+        {
+            // Tự động kiểm tra và sửa lại quan hệ cha-con nếu bị lệch (do thứ tự khởi tạo Awake/Start hoặc reload cảnh)
+            if (equippedBearVisual.transform.parent != camTrans)
+            {
+                equippedBearVisual.transform.SetParent(camTrans, false);
+            }
+
+            // Đồng bộ hoá tuyệt đối vị trí và hướng xoay của visual cha theo Camera chính
+            equippedBearVisual.transform.localPosition = Vector3.zero;
+            equippedBearVisual.transform.localRotation = Quaternion.identity;
+
+            // Neo chặt gấu bông ở đúng offset cấu hình để triệt tiêu mọi dịch chuyển sai lệch từ vật lý/hoạt ảnh
+            if (bearInstance != null)
+            {
+                bearInstance.transform.localPosition = bearPositionOffset;
+                bearInstance.transform.localRotation = Quaternion.Euler(bearRotationOffset);
+            }
+            else if (bearSphere != null)
+            {
+                bearSphere.transform.localPosition = bearPositionOffset;
+                bearSphere.transform.localRotation = Quaternion.identity;
+            }
+
+            // Neo chặt vị trí Point Light chiếu sáng gấu
+            if (bearGlowLight != null)
+            {
+                bearGlowLight.transform.localPosition = bearPositionOffset + new Vector3(-0.05f, 0.1f, -0.1f);
+            }
+        }
+    }
+
     private void RefreshEquippedVisual()
     {
         bool isEquipped = PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
@@ -280,6 +320,27 @@ public class PlayerHandheldManager : MonoBehaviour
             foreach (var col in colliders)
             {
                 Destroy(col);
+            }
+
+            // Khử tất cả Rigidbody để tránh gấu bị rơi do vật lý/trọng lực khi chạy game
+            Rigidbody[] rbs = bearInstance.GetComponentsInChildren<Rigidbody>(true);
+            foreach (var rb in rbs)
+            {
+                Destroy(rb);
+            }
+
+            // Khử tất cả Joint liên kết vật lý
+            Joint[] joints = bearInstance.GetComponentsInChildren<Joint>(true);
+            foreach (var j in joints)
+            {
+                Destroy(j);
+            }
+
+            // Khử tất cả CharacterController nếu có
+            CharacterController[] ccs = bearInstance.GetComponentsInChildren<CharacterController>(true);
+            foreach (var cc in ccs)
+            {
+                Destroy(cc);
             }
 
             // Tắt/Hủy Animator để tránh việc Animation ghi đè tọa độ của gấu trên tay
