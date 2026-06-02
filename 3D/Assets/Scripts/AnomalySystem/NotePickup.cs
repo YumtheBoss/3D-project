@@ -222,6 +222,7 @@ public class NotePickup : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        FirstPersonController.IsUIOpen = true;
     }
 
     public void CloseNote()
@@ -236,6 +237,7 @@ public class NotePickup : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        FirstPersonController.IsUIOpen = false;
 
         Debug.Log("[NotePickup] Đóng mẩu giấy.");
     }

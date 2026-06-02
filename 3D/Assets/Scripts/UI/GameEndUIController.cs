@@ -340,7 +340,7 @@ public class GameEndUIController : MonoBehaviour
         // 2. Lưu điểm số lên bảng xếp hạng của Firebase
         if (FirebaseDatabaseManager.Instance != null)
         {
-            FirebaseDatabaseManager.Instance.SaveLeaderboardScore(name, completionTime);
+            FirebaseDatabaseManager.Instance.SaveLeaderboardScore(name, completionTime, true);
         }
         else
         {

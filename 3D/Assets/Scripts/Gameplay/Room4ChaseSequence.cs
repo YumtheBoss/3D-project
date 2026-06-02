@@ -26,6 +26,20 @@ public class Room4ChaseSequence : MonoBehaviour
     [Tooltip("Nhạc chase căng thẳng")]
     public AudioClip chaseMusic;
 
+    [Header("Monster Sounds")]
+    [Tooltip("Danh sách tiếng kêu/gầm của quái vật")]
+    public AudioClip[] demonGrowlSounds;
+    [Tooltip("Thời gian tối thiểu giữa mỗi lần kêu (giây)")]
+    public float growlMinInterval = 3f;
+    [Tooltip("Thời gian tối đa giữa mỗi lần kêu (giây)")]
+    public float growlMaxInterval = 7f;
+    [Tooltip("AudioSource trên quái vật (sẽ tự động tạo nếu thiếu)")]
+    public AudioSource demonAudioSource;
+
+    [Header("Jump Scare Sound")]
+    [Tooltip("Tiếng thét khi quái vật bắt được người chơi")]
+    public AudioClip catchJumpScareSound;
+
     // ─── Exit ───────────────────────────────────────────────────
     [Header("Exit")]
     [Tooltip("Trigger Collider ở cửa cuối hành lang")]
@@ -63,6 +77,10 @@ public class Room4ChaseSequence : MonoBehaviour
         GetComponent<Collider>().isTrigger = true;
         if (corridorDemon != null) corridorDemon.SetActive(false);
         if (exitTrigger   != null) exitTrigger.enabled = false;
+
+        #if UNITY_EDITOR
+        AutoAssignAssets();
+        #endif
     }
 
     private void Start()
@@ -75,7 +93,95 @@ public class Room4ChaseSequence : MonoBehaviour
                 Debug.Log("[Room4ChaseSequence] Automatically assigned playerController dynamically!");
             }
         }
+
+        // Tự động tìm hoặc gắn AudioSource cho nhạc nền chase
+        if (chaseAudioSource == null)
+        {
+            chaseAudioSource = GetComponent<AudioSource>();
+            if (chaseAudioSource == null)
+            {
+                chaseAudioSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
+        if (chaseAudioSource != null)
+        {
+            chaseAudioSource.playOnAwake = false;
+            chaseAudioSource.spatialBlend = 0f; // 2D sound for BGM
+        }
+
+        // Tự động tìm hoặc gắn AudioSource cho quái vật
+        if (corridorDemon != null && demonAudioSource == null)
+        {
+            demonAudioSource = corridorDemon.GetComponent<AudioSource>();
+            if (demonAudioSource == null)
+            {
+                demonAudioSource = corridorDemon.AddComponent<AudioSource>();
+            }
+        }
+        if (demonAudioSource != null)
+        {
+            demonAudioSource.playOnAwake = false;
+            demonAudioSource.spatialBlend = 1.0f; // 3D sound (positional)
+            demonAudioSource.minDistance = 2f;
+            demonAudioSource.maxDistance = 25f;
+            demonAudioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+        }
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        AutoAssignAssets();
+    }
+
+    private void AutoAssignAssets()
+    {
+        // 1. Tìm nhạc chase
+        if (chaseMusic == null)
+        {
+            string[] musicGuids = UnityEditor.AssetDatabase.FindAssets("01 Before Dark FULL LOOP t:AudioClip");
+            if (musicGuids.Length == 0) musicGuids = UnityEditor.AssetDatabase.FindAssets("Before Dark t:AudioClip");
+            if (musicGuids.Length == 0) musicGuids = UnityEditor.AssetDatabase.FindAssets("LOOP t:AudioClip");
+            if (musicGuids.Length > 0)
+            {
+                string path = UnityEditor.AssetDatabase.GUIDToAssetPath(musicGuids[0]);
+                chaseMusic = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                Debug.Log($"[Room4ChaseSequence Editor-Helper] Tự động gán nhạc chase: {path}");
+            }
+        }
+
+        // 2. Tìm tiếng gầm của quái vật (Backroom Entities)
+        if (demonGrowlSounds == null || demonGrowlSounds.Length == 0)
+        {
+            string[] soundGuids = UnityEditor.AssetDatabase.FindAssets("Backroom Entities t:AudioClip");
+            if (soundGuids.Length > 0)
+            {
+                var clips = new System.Collections.Generic.List<AudioClip>();
+                foreach (string guid in soundGuids)
+                {
+                    string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                    AudioClip clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                    if (clip != null) clips.Add(clip);
+                }
+                demonGrowlSounds = clips.ToArray();
+                Debug.Log($"[Room4ChaseSequence Editor-Helper] Tự động gán {demonGrowlSounds.Length} âm thanh quái vật từ Backroom Entities!");
+            }
+        }
+
+        // 3. Tìm tiếng jumpscare khi bị bắt
+        if (catchJumpScareSound == null)
+        {
+            string[] scareGuids = UnityEditor.AssetDatabase.FindAssets("JumpScare_Large t:AudioClip");
+            if (scareGuids.Length == 0) scareGuids = UnityEditor.AssetDatabase.FindAssets("JumpScare t:AudioClip");
+            if (scareGuids.Length > 0)
+            {
+                string path = UnityEditor.AssetDatabase.GUIDToAssetPath(scareGuids[0]);
+                catchJumpScareSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                Debug.Log($"[Room4ChaseSequence Editor-Helper] Tự động gán tiếng jumpscare: {path}");
+            }
+        }
+    }
+#endif
 
     // ═══════════════════════════════════════════════════════════
     // TRIGGER — player bước vào hành lang
@@ -164,6 +270,9 @@ public class Room4ChaseSequence : MonoBehaviour
         chaseActive = true;
         if (exitTrigger != null) exitTrigger.enabled = true;
 
+        // Bắt đầu phát âm thanh của quái vật
+        StartCoroutine(PlayDemonSoundsRoutine());
+
         // Hiển thị HUD hướng dẫn chạy nhanh (Sprint) bằng phím Shift
         TutorialHUDManager.Instance?.ShowTutorial(TutorialHUDManager.TutorialType.Sprint);
     }
@@ -217,6 +326,36 @@ public class Room4ChaseSequence : MonoBehaviour
     // ATTACK SEQUENCE — bắt được player
     // ═══════════════════════════════════════════════════════════
 
+    private IEnumerator PlayDemonSoundsRoutine()
+    {
+        // Thêm tiếng gầm đọa dẫm ngay khi xuất hiện
+        if (demonGrowlSounds != null && demonGrowlSounds.Length > 0)
+        {
+            AudioClip startClip = demonGrowlSounds[Random.Range(0, demonGrowlSounds.Length)];
+            if (startClip != null && demonAudioSource != null)
+            {
+                demonAudioSource.PlayOneShot(startClip);
+            }
+        }
+
+        while (chaseActive && corridorDemon != null && corridorDemon.activeSelf)
+        {
+            float waitTime = Random.Range(growlMinInterval, growlMaxInterval);
+            yield return new WaitForSeconds(waitTime);
+
+            if (!chaseActive || corridorDemon == null || !corridorDemon.activeSelf) break;
+
+            if (demonGrowlSounds != null && demonGrowlSounds.Length > 0)
+            {
+                AudioClip clip = demonGrowlSounds[Random.Range(0, demonGrowlSounds.Length)];
+                if (clip != null && demonAudioSource != null)
+                {
+                    demonAudioSource.PlayOneShot(clip);
+                }
+            }
+        }
+    }
+
     private IEnumerator AttackAndBadEnding()
     {
         // Dừng quỷ di chuyển
@@ -226,25 +365,59 @@ public class Room4ChaseSequence : MonoBehaviour
             agent.enabled   = false;
         }
 
-        // Đóng băng người chơi hoàn toàn (Self-Healing)
+        // Đóng băng người chơi hoàn toàn (Self-Healing) và tắt script di chuyển để tránh HeadBob di chuyển camera khi unparented
         if (FirstPersonController.Instance != null)
         {
             FirstPersonController.Instance.FreezePlayer();
+            FirstPersonController.Instance.enabled = false;
         }
         else if (playerController != null)
         {
             playerController.enabled = false;
         }
 
+        // Dừng nhạc chase nền để thét jumpscare rõ hơn
+        if (chaseAudioSource != null)
+        {
+            chaseAudioSource.Stop();
+        }
+
+        // Phát tiếng thét jumpscare từ quái vật
+        if (demonAudioSource != null && catchJumpScareSound != null)
+        {
+            demonAudioSource.PlayOneShot(catchJumpScareSound, 1.0f);
+        }
+
         // Chuyển từ RUN → ATTACK
         SetDemonRun(false);
         if (demonAnimator != null) demonAnimator.CrossFade("ATTACK", 0.25f);
+
+        // Lưu thông tin gốc của camera để khôi phục tránh lỗi camera bay ra ngoài bản đồ và bị xoá khi chuyển scene
+        Camera cam = Camera.main;
+        Transform originalParent = null;
+        Vector3 originalLocalPos = Vector3.zero;
+        Quaternion originalLocalRot = Quaternion.identity;
+
+        if (cam != null)
+        {
+            originalParent = cam.transform.parent;
+            originalLocalPos = cam.transform.localPosition;
+            originalLocalRot = cam.transform.localRotation;
+        }
 
         // Camera zoom vào quỷ
         yield return StartCoroutine(ZoomCameraTowardDemon());
 
         // Chờ animation ATTACK chạy xong
         yield return new WaitForSeconds(attackAnimDuration);
+
+        // Gắn lại camera về người chơi trước khi màn hình Game Over hiển thị
+        if (cam != null && originalParent != null)
+        {
+            cam.transform.SetParent(originalParent, false);
+            cam.transform.localPosition = originalLocalPos;
+            cam.transform.localRotation = originalLocalRot;
+        }
 
         if (chaseAudioSource != null) chaseAudioSource.Stop();
         RoomManager.Instance?.TriggerBadEnding("caught_corridor");

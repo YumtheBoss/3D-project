@@ -77,7 +77,7 @@ public class InteractiveDoor : MonoBehaviour
         {
             if (targetRoom == RoomManager.RoomState.Room0 || targetRoom == RoomManager.RoomState.Room1 || targetRoom == RoomManager.RoomState.Room2)
             {
-                string blockText = "Cánh cửa này đã bị khóa chặt từ bên ngoài... Mình cảm giác có điều gì đó không lành ở phía sau. Mình phải đi tiếp qua cánh cửa đang chiếu đèn đỏ ở đằng kia.";
+                string blockText = GameTextConfig.SAFETY_LOCK_ROOM3_BACK;
                 RoomManager.Instance.PlaySafetyMonologue(blockText);
                 return;
             }

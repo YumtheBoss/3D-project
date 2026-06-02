@@ -45,7 +45,11 @@ public class HospitalSceneManager : MonoBehaviour
     {
         if (room == RoomManager.RoomState.Room4)
         {
-            r4EntryMonologue?.PlayManually();
+            if (r4EntryMonologue != null)
+            {
+                r4EntryMonologue.lines = GameTextConfig.GetMonologueLines("Room4_Entry");
+                r4EntryMonologue.PlayManually();
+            }
         }
     }
 
@@ -102,7 +106,11 @@ public class HospitalSceneManager : MonoBehaviour
         else
             yield return null;
 
-        r3EntryMonologue?.PlayManually();
+        if (r3EntryMonologue != null)
+        {
+            r3EntryMonologue.lines = GameTextConfig.GetMonologueLines("Room3_Entry");
+            r3EntryMonologue.PlayManually();
+        }
     }
 
     /// <summary>

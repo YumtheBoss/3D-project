@@ -77,8 +77,53 @@ namespace GameUI
 
         private void Awake()
         {
+            CleanupPersistentGameplayObjects();
+
             // Tự động tìm kiếm và liên kết các thành phần bị thiếu (Self-Healing System)
             SelfHealReferences();
+        }
+
+        private void CleanupPersistentGameplayObjects()
+        {
+            Debug.Log("[MainMenu] Bắt đầu dọn dẹp các đối tượng persistent của lượt chơi trước để tránh lỗi xung đột...");
+
+            // 1. Huỷ đối tượng người chơi persistent (FirstPersonController)
+            if (FirstPersonController.Instance != null)
+            {
+                Destroy(FirstPersonController.Instance.gameObject);
+            }
+            else
+            {
+                GameObject oldPlayer = GameObject.FindWithTag("Player");
+                if (oldPlayer == null) oldPlayer = GameObject.Find("Player");
+                if (oldPlayer != null)
+                {
+                    Destroy(oldPlayer);
+                }
+            }
+
+            // 2. Huỷ các Managers/Controllers persistent liên quan đến gameplay
+            if (RoomManager.Instance != null) Destroy(RoomManager.Instance.gameObject);
+            if (InventoryManager.Instance != null) Destroy(InventoryManager.Instance.gameObject);
+            if (PlayerTracker.Instance != null) Destroy(PlayerTracker.Instance.gameObject);
+            if (TutorialHUDManager.Instance != null) Destroy(TutorialHUDManager.Instance.gameObject);
+            if (EndingController.Instance != null) Destroy(EndingController.Instance.gameObject);
+            if (GameEndUIController.Instance != null) Destroy(GameEndUIController.Instance.gameObject);
+
+            // Tìm và huỷ thêm các đối tượng tự sinh ra nếu còn sót lại (dự phòng)
+            GameObject oldTransition = GameObject.Find("_RoomTransitionScreen_Auto");
+            if (oldTransition != null) Destroy(oldTransition);
+
+            GameObject oldJumpscare = GameObject.Find("_JumpscareCanvas_Auto");
+            if (oldJumpscare != null) Destroy(oldJumpscare);
+
+            // Khôi phục các trạng thái toàn cục quan trọng
+            Time.timeScale = 1f;
+            FirstPersonController.IsUIOpen = false;
+            
+            // Hiện con trỏ chuột ở Main Menu
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         private void SelfHealReferences()

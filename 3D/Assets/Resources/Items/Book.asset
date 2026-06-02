@@ -16,5 +16,5 @@ MonoBehaviour:
   itemName: "Quy\u1EC3n s\u1ED5"
   itemDescription: "Quy\u1EC3n s\u1ED5 b\u1ECB m\u1EA5t kh\xE1 nhi\u1EC1u trang,
     kh\xF4ng r\xF5 ch\u1EE7 s\u1EDF h\u1EEFu c\u1EE7a n\xF3 l\xE0 ai. "
-  itemIcon: {fileID: 0}
+  itemIcon: {fileID: 21300000, guid: 9e57ce41754bf334199bb0b456d20be7, type: 3}
   itemPrefab: {fileID: 3721382584213434006, guid: 85f6d086b2239734cac2f820097fa91d, type: 3}

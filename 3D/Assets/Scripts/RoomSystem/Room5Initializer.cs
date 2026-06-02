@@ -133,13 +133,7 @@ public class Room5Initializer : MonoBehaviour
         // Tự động tạo và phát hội thoại nội tâm (Inner Monologue) hướng dẫn người chơi câu đố phong ấn Room 5
         var monologue = gameObject.AddComponent<InnerMonologue>();
         monologue.fontSize = 28f;
-        monologue.lines = new List<InnerMonologue.MonologueLine>
-        {
-            new InnerMonologue.MonologueLine { text = "Cửa thông hơi thoát hiểm... đã bị khóa chặt bởi tà khí hắc ám cổ đại!", autoAdvanceDelay = 3.5f },
-            new InnerMonologue.MonologueLine { text = "Tôi có thể cảm nhận được... có 3 nguồn năng lượng tà ác đang phong ấn cả căn phòng này.", autoAdvanceDelay = 4.2f },
-            new InnerMonologue.MonologueLine { text = "Phải sử dụng Lá chắn Tâm linh của Gấu Bông Phát Sáng [G] đứng gần thanh tẩy chúng mới mong trốn thoát!", autoAdvanceDelay = 4.5f },
-            new InnerMonologue.MonologueLine { text = "Nhưng hãy cẩn thận... tà khí bùng phát khi sạc đàn tế sẽ thu hút quỷ dữ ở cả 2 tầng tìm đến!", autoAdvanceDelay = 4.5f }
-        };
+        monologue.lines = GameTextConfig.GetMonologueLines("Room5_Entry");
         monologue.PlayManually();
     }
 

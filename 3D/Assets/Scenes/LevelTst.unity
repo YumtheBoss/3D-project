@@ -439,8 +439,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a1d775660c45944eac2f216251dae23, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FloorDemonAI
-  floorYMin: 0
-  floorYMax: 5
+  floorYMin: -100
+  floorYMax: 100
   patrolWaypoints: []
   patrolSpeed: 1.4
   waypointWaitTime: 1.5
@@ -454,7 +454,7 @@ MonoBehaviour:
   startDelay: 0
   attackAnimDuration: 1.5
   damageFlinchDuration: 0.6
-  lightVanishTime: 3
+  lightVanishTime: 7
 --- !u!195 &175026209
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -869,7 +869,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2224734551951520329, guid: be8e11feff6fea9488396fcfbe21bb55, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -5.27
+      value: -2.866
       objectReference: {fileID: 0}
     - target: {fileID: 2224734551951520329, guid: be8e11feff6fea9488396fcfbe21bb55, type: 3}
       propertyPath: m_LocalPosition.y
@@ -877,7 +877,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2224734551951520329, guid: be8e11feff6fea9488396fcfbe21bb55, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -5.615
+      value: -10.541
       objectReference: {fileID: 0}
     - target: {fileID: 2224734551951520329, guid: be8e11feff6fea9488396fcfbe21bb55, type: 3}
       propertyPath: m_LocalRotation.w
@@ -913,7 +913,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4730272027838501118, guid: be8e11feff6fea9488396fcfbe21bb55, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8636309322575226435, guid: be8e11feff6fea9488396fcfbe21bb55, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'

@@ -94,13 +94,27 @@ public class RoomManager : MonoBehaviour
         int savedRoom = PlayerPrefs.GetInt("CurrentRoom", 0);
 
         #if UNITY_EDITOR
-        // Nếu chạy trực tiếp trong Unity Editor ở SampleScene, tự động reset về Room 0 để tránh lưu trữ rác từ các lần test trước
+        // Nếu chạy trực tiếp trong Unity Editor, tự động reset về phòng bắt đầu của scene tương ứng để tránh lỗi lệch trạng thái khi test
         if (SceneManager.GetActiveScene().name == sampleSceneName)
         {
             savedRoom = 0;
             PlayerPrefs.SetInt("CurrentRoom", 0);
             PlayerPrefs.Save();
             Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room0 để tránh lỗi desync khi test trực tiếp trong Editor!");
+        }
+        else if (SceneManager.GetActiveScene().name == hospitalSceneName)
+        {
+            savedRoom = (int)RoomState.Room3;
+            PlayerPrefs.SetInt("CurrentRoom", savedRoom);
+            PlayerPrefs.Save();
+            Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room3 để tránh lỗi desync khi test trực tiếp Hospital trong Editor!");
+        }
+        else if (SceneManager.GetActiveScene().name == room5SceneName)
+        {
+            savedRoom = (int)RoomState.Room5;
+            PlayerPrefs.SetInt("CurrentRoom", savedRoom);
+            PlayerPrefs.Save();
+            Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room5 để tránh lỗi desync khi test trực tiếp LevelTst trong Editor!");
         }
         #endif
 
@@ -148,13 +162,27 @@ public class RoomManager : MonoBehaviour
             int savedRoom = PlayerPrefs.GetInt("CurrentRoom", 0);
 
             #if UNITY_EDITOR
-            // Nếu chạy trực tiếp trong Unity Editor ở SampleScene, tự động reset về Room 0
+            // Nếu chạy trực tiếp trong Unity Editor, tự động reset về phòng tương ứng
             if (scene.name == sampleSceneName)
             {
                 savedRoom = 0;
                 PlayerPrefs.SetInt("CurrentRoom", 0);
                 PlayerPrefs.Save();
                 Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room0 ở OnSceneLoaded!");
+            }
+            else if (scene.name == hospitalSceneName)
+            {
+                savedRoom = (int)RoomState.Room3;
+                PlayerPrefs.SetInt("CurrentRoom", savedRoom);
+                PlayerPrefs.Save();
+                Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room3 ở OnSceneLoaded!");
+            }
+            else if (scene.name == room5SceneName)
+            {
+                savedRoom = (int)RoomState.Room5;
+                PlayerPrefs.SetInt("CurrentRoom", savedRoom);
+                PlayerPrefs.Save();
+                Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room5 ở OnSceneLoaded!");
             }
             #endif
 
@@ -607,6 +635,42 @@ public class RoomManager : MonoBehaviour
             playerObj = FirstPersonController.Instance.gameObject;
         }
 
+        // Dọn dẹp trùng lặp PlayerHandheldManager trên Player chính chủ
+        if (playerObj != null)
+        {
+            PlayerHandheldManager[] managers = playerObj.GetComponentsInChildren<PlayerHandheldManager>(true);
+            if (managers.Length > 1)
+            {
+                Debug.Log($"[RoomManager] Phát hiện {managers.Length} PlayerHandheldManager trên Player chính chủ. Tiến hành dọn dẹp...");
+                PlayerHandheldManager keepManager = null;
+                // Ưu tiên giữ manager có gán prefab hoặc ở root
+                foreach (var mgr in managers)
+                {
+                    if (keepManager == null)
+                    {
+                        keepManager = mgr;
+                    }
+                    else
+                    {
+                        if (mgr.teddyBearPrefab != null && keepManager.teddyBearPrefab == null)
+                        {
+                            keepManager = mgr;
+                        }
+                    }
+                }
+                
+                // Hủy các manager thừa
+                foreach (var mgr in managers)
+                {
+                    if (mgr != keepManager)
+                    {
+                        Debug.Log($"[RoomManager] Đang hủy PlayerHandheldManager dư thừa trên GameObject '{mgr.gameObject.name}'");
+                        Destroy(mgr);
+                    }
+                }
+            }
+        }
+
         // 2. Tìm các đối tượng có tag "Player" trong scene để quét dọn bản sao cục bộ dư thừa
         GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
         if (players.Length > 0)
@@ -620,15 +684,22 @@ public class RoomManager : MonoBehaviour
                     var localHandheld = p.GetComponentInChildren<PlayerHandheldManager>();
                     if (localHandheld != null)
                     {
-                        Camera mainPlayerCam = playerObj.GetComponentInChildren<Camera>();
-                        if (mainPlayerCam != null)
+                        var mainHandheld = playerObj.GetComponentInChildren<PlayerHandheldManager>();
+                        if (mainHandheld == null)
                         {
-                            var mainHandheld = mainPlayerCam.GetComponent<PlayerHandheldManager>();
-                            if (mainHandheld == null)
+                            Camera mainPlayerCam = playerObj.GetComponentInChildren<Camera>();
+                            if (mainPlayerCam != null)
                             {
                                 mainHandheld = mainPlayerCam.gameObject.AddComponent<PlayerHandheldManager>();
                             }
-                            
+                            else
+                            {
+                                mainHandheld = playerObj.AddComponent<PlayerHandheldManager>();
+                            }
+                        }
+                        
+                        if (mainHandheld != null)
+                        {
                             // Sao chép các trường cấu hình
                             mainHandheld.teddyBearPrefab = localHandheld.teddyBearPrefab;
                             mainHandheld.bearPositionOffset = localHandheld.bearPositionOffset;
@@ -850,7 +921,7 @@ public class RoomManager : MonoBehaviour
         {
             if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("Book"))
             {
-                hintText = "Quyển sổ nhật ký trên bàn... hình như nó chứa đựng những ghi chép quan trọng của ai đó. Mình nên đọc nó trước khi đi tiếp.";
+                hintText = GameTextConfig.GetSafetyHint(RoomState.Room0);
                 canExit = false;
             }
         }
@@ -858,7 +929,7 @@ public class RoomManager : MonoBehaviour
         {
             if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("TornPage_Room1"))
             {
-                hintText = "Mình chưa tìm kiếm kỹ căn phòng này... Có một mảnh giấy rách đang phát sáng trên kệ, mình nên nhặt nó để xem có manh mối gì không.";
+                hintText = GameTextConfig.GetSafetyHint(RoomState.Room1);
                 canExit = false;
             }
         }
@@ -866,7 +937,7 @@ public class RoomManager : MonoBehaviour
         {
             if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("BibleNote_Room3"))
             {
-                hintText = "Hành lang phía trước tối tăm và u ám một cách đáng sợ... Mình phải tìm kiếm thứ gì đó phát sáng ở đằng kia trước khi bước qua cánh cửa này.";
+                hintText = GameTextConfig.GetSafetyHint(RoomState.Room3);
                 canExit = false;
             }
         }
@@ -874,7 +945,7 @@ public class RoomManager : MonoBehaviour
         {
             if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("TeddyBear"))
             {
-                hintText = "Năng lượng tà ác ở hành lang này quá mạnh... Mình cần một thứ bảo hộ tâm linh. Con gấu bông phát sáng trong chiếc cũi kia, mình phải nhặt nó trước.";
+                hintText = GameTextConfig.GetSafetyHint(RoomState.Room4);
                 canExit = false;
             }
         }

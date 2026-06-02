@@ -34,6 +34,9 @@ public class EndingController : MonoBehaviour
     private Button submitScoreButton;
     private AudioSource audioSource;
 
+    private float currentPlayTime = 0f;
+    private bool isGoodEnding = false;
+
     private void Awake()
     {
         if (Instance == null)
@@ -160,9 +163,16 @@ public class EndingController : MonoBehaviour
 
     public void ShowGoodEnding(float playTime)
     {
+        currentPlayTime = playTime;
+        isGoodEnding = true;
+
+        StopGameplayBGM();
+        LoadEndingAudioClips();
+
         if (GameEndUIController.Instance != null)
         {
             GameEndUIController.Instance.ShowEndScreen(playTime);
+            PlayOneShot(goodEndingMusic);
         }
         else
         {
@@ -176,8 +186,19 @@ public class EndingController : MonoBehaviour
 
             retryButton.gameObject.SetActive(false);
             
-            if (nameInputField != null) nameInputField.gameObject.SetActive(false);
-            if (submitScoreButton != null) submitScoreButton.gameObject.SetActive(false);
+            if (nameInputField != null)
+            {
+                nameInputField.gameObject.SetActive(true);
+                nameInputField.interactable = true;
+                nameInputField.text = ""; // Xoá tên cũ
+            }
+            if (submitScoreButton != null)
+            {
+                submitScoreButton.gameObject.SetActive(true);
+                submitScoreButton.interactable = true;
+                Text btnText = submitScoreButton.GetComponentInChildren<Text>();
+                if (btnText != null) btnText.text = "Gửi Bảng Xếp Hạng";
+            }
 
             // Căn giữa nút menu cho good ending
             RectTransform menuRt = menuButton.GetComponent<RectTransform>();
@@ -192,6 +213,12 @@ public class EndingController : MonoBehaviour
     public void ShowBadEnding(string reason)
     {
         float playTime = RoomManager.Instance != null ? RoomManager.Instance.TotalPlayTime : 0f;
+        currentPlayTime = playTime;
+        isGoodEnding = false;
+
+        StopGameplayBGM();
+        LoadEndingAudioClips();
+
         int minutes = Mathf.FloorToInt(playTime / 60f);
         int seconds = Mathf.FloorToInt(playTime % 60f);
 
@@ -231,6 +258,12 @@ public class EndingController : MonoBehaviour
     public void ShowBadEndingTrapped()
     {
         float playTime = RoomManager.Instance != null ? RoomManager.Instance.TotalPlayTime : 0f;
+        currentPlayTime = playTime;
+        isGoodEnding = false;
+
+        StopGameplayBGM();
+        LoadEndingAudioClips();
+
         int minutes = Mathf.FloorToInt(playTime / 60f);
         int seconds = Mathf.FloorToInt(playTime % 60f);
 
@@ -265,6 +298,34 @@ public class EndingController : MonoBehaviour
         OpenCanvas();
         PlayOneShot(badEndingZombieSound);
         PlayLoop(badEndingAmbient);
+    }
+
+    private void LoadEndingAudioClips()
+    {
+        if (goodEndingMusic == null)
+        {
+            goodEndingMusic = Resources.Load<AudioClip>("EndingAudio/goodEndingMusic");
+        }
+        if (badEndingZombieSound == null)
+        {
+            badEndingZombieSound = Resources.Load<AudioClip>("EndingAudio/badEndingZombieSound");
+        }
+        if (badEndingAmbient == null)
+        {
+            badEndingAmbient = Resources.Load<AudioClip>("EndingAudio/badEndingAmbient");
+        }
+    }
+
+    private void StopGameplayBGM()
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.StopMusic();
+        }
+        if (Room5AudioDirector.Instance != null)
+        {
+            Room5AudioDirector.Instance.DisableRoom5Audio();
+        }
     }
 
     // ──────────────────────────────────────────────────────
@@ -384,13 +445,13 @@ public class EndingController : MonoBehaviour
             name = "Player"; // Tên mặc định nếu bỏ trống
         }
 
-        float playTime = RoomManager.Instance != null ? RoomManager.Instance.TotalPlayTime : 0f;
+        float playTime = currentPlayTime;
 
-        Debug.Log($"[EndingController] Gửi điểm số '{name}' với thời gian {playTime:F2}s lên Firebase...");
+        Debug.Log($"[EndingController] Gửi điểm số '{name}' với thời gian {playTime:F2}s lên Firebase (Hoàn thành: {isGoodEnding})...");
 
         if (FirebaseDatabaseManager.Instance != null)
         {
-            FirebaseDatabaseManager.Instance.SaveLeaderboardScore(name, playTime);
+            FirebaseDatabaseManager.Instance.SaveLeaderboardScore(name, playTime, isGoodEnding);
         }
         else
         {

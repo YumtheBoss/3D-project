@@ -27,6 +27,7 @@ namespace GameUI
 
         private string sceneToLoadAfterCutscene;
         private UnityEngine.UI.Image activeFadeOverlay;
+        private Coroutine playRoutine;
 
         [Header("Loading Screen")]
         public GameObject loadingPanel;
@@ -341,7 +342,8 @@ namespace GameUI
                     skipButton.transform.SetAsLastSibling();
                 }
 
-                StartCoroutine(PlayCutsceneRoutine());
+                if (playRoutine != null) StopCoroutine(playRoutine);
+                playRoutine = StartCoroutine(PlayCutsceneRoutine());
             }
             else
             {
@@ -451,6 +453,7 @@ namespace GameUI
             else
             {
                 Debug.LogWarning("[CutsceneManager] Không thể nạp video (Timeout)! Tự động bỏ qua cutscene sang gameplay.");
+                playRoutine = null;
                 StartCoroutine(LoadSceneAsync());
             }
         }
@@ -486,6 +489,11 @@ namespace GameUI
             if (vp.isPrepared)
             {
                 Debug.Log("[CutsceneManager] Cutscene kết thúc bình thường. Tiến hành chuyển cảnh.");
+                if (playRoutine != null)
+                {
+                    StopCoroutine(playRoutine);
+                    playRoutine = null;
+                }
                 StartCoroutine(LoadSceneAsync());
             }
         }
@@ -493,6 +501,11 @@ namespace GameUI
         // Hàm này sẽ được gán vào nút Skip
         public void SkipCutscene()
         {
+            if (playRoutine != null)
+            {
+                StopCoroutine(playRoutine);
+                playRoutine = null;
+            }
             StartCoroutine(LoadSceneAsync());
         }
 

@@ -33,6 +33,10 @@ public class Room1Starter : MonoBehaviour
     private IEnumerator PlayAfterDelay()
     {
         yield return new WaitForSeconds(startDelay);
-        entryMonologue?.PlayManually();
+        if (entryMonologue != null)
+        {
+            entryMonologue.lines = GameTextConfig.GetMonologueLines("Room1_Entry");
+            entryMonologue.PlayManually();
+        }
     }
 }

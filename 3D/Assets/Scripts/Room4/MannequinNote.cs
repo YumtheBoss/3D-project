@@ -26,15 +26,7 @@ public class MannequinNote : MonoBehaviour
     [Range(0f, 1f)] public float volume = 0.7f;
 
     // ── Nội dung tờ giấy Room 4 ──────────────────────────────────
-    private const string NOTE_CONTENT =
-        "<color=#FF4444><size=115%><b>— Ghi chép khẩn thiết —</b></size></color>\n\n" +
-        "<i>Mười hai người... không ai có thể thoát ra ngoài.\n" +
-        "Gấu bông phát sáng là lá chắn tâm linh duy nhất giúp bạn chống chọi với lũ quỷ.\n\n" +
-        "Khi soi hào quang bảo vệ của Gấu bông vào các nguồn <b>phong ấn tà ác</b> ở căn phòng tiếp theo, phong ấn sẽ bị thanh tẩy.\n\n" +
-        "<mark=#3A000080><color=#FF9999>" +
-        "Nhưng hãy cẩn thận!\n" +
-        "Tà khí bùng phát khi thanh tẩy sẽ đánh động và thu hút quỷ dữ ở cả 2 tầng lao thẳng tới bạn!\n" +
-        "Hãy giữ vững lá chắn, giải phóng cả 3 đàn tế phong ấn thì lối thoát hiểm mới mở!</color></mark></i>";
+    private string NOTE_CONTENT => GameTextConfig.MANNEQUIN_NOTE_ROOM4;
 
     private bool isOpen = false;
     private bool hasBeenRead = false;
@@ -110,6 +102,7 @@ public class MannequinNote : MonoBehaviour
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        FirstPersonController.IsUIOpen = true;
     }
 
     public void CloseNote()
@@ -121,11 +114,16 @@ public class MannequinNote : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        FirstPersonController.IsUIOpen = false;
 
         if (!hasBeenRead)
         {
             hasBeenRead = true;
-            postReadMonologue?.PlayManually();
+            if (postReadMonologue != null)
+            {
+                postReadMonologue.lines = GameTextConfig.GetMonologueLines("Room4_PostNote");
+                postReadMonologue.PlayManually();
+            }
         }
 
         // Biến mất hoàn toàn sau khi nhặt/đọc xong

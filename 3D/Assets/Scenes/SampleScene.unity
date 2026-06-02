@@ -82268,7 +82268,7 @@ MonoBehaviour:
   settingsPanel: {fileID: 682128215}
   hudPanel: {fileID: 0}
   interactionCanvas: {fileID: 0}
-  inventoryPanel: {fileID: 0}
+  inventoryPanel: {fileID: 1446015000212816488}
   masterVolumeSlider: {fileID: 303954192}
   musicVolumeSlider: {fileID: 1093142480}
   sfxVolumeSlider: {fileID: 2099468560}

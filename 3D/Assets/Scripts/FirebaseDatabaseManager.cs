@@ -10,6 +10,7 @@ public class LeaderboardEntry
     public string playerName;
     public float completion_time_seconds;
     public string timestamp;
+    public bool isCompleted;
 }
 
 public class FirebaseDatabaseManager : MonoBehaviour
@@ -53,12 +54,12 @@ public class FirebaseDatabaseManager : MonoBehaviour
     /// <summary>
     /// Gửi điểm số hoàn thành game lên bảng xếp hạng Firebase
     /// </summary>
-    public void SaveLeaderboardScore(string name, float timeInSeconds)
+    public void SaveLeaderboardScore(string name, float timeInSeconds, bool isCompleted = false)
     {
         string path = "Leaderboard.json";
         
-        // Tạo chuỗi JSON đơn giản chứa tên, thời gian và ngày hiện tại
-        string json = $"{{\"playerName\": \"{name}\", \"completion_time_seconds\": {timeInSeconds:F2}, \"timestamp\": \"{System.DateTime.Now.ToString("yyyy-MM-dd")}\"}}";
+        // Tạo chuỗi JSON đơn giản chứa tên, thời gian, ngày hiện tại và trạng thái hoàn thành
+        string json = $"{{\"playerName\": \"{name}\", \"completion_time_seconds\": {timeInSeconds:F2}, \"timestamp\": \"{System.DateTime.Now.ToString("yyyy-MM-dd")}\", \"isCompleted\": {isCompleted.ToString().ToLower()}}}";
         
         StartCoroutine(PostData(path, json));
     }
@@ -138,14 +139,25 @@ public class FirebaseDatabaseManager : MonoBehaviour
                         var nameMatch = System.Text.RegularExpressions.Regex.Match(objStr, @"\""playerName\""\s*:\s*\""([^\""]+)\""");
                         var timeMatch = System.Text.RegularExpressions.Regex.Match(objStr, @"\""completion_time_seconds\""\s*:\s*([0-9\.]+)");
                         var dateMatch = System.Text.RegularExpressions.Regex.Match(objStr, @"\""timestamp\""\s*:\s*\""([^\""]+)\""");
+                        var completedMatch = System.Text.RegularExpressions.Regex.Match(objStr, @"\""isCompleted\""\s*:\s*(true|false)");
 
                         if (nameMatch.Success && timeMatch.Success)
                         {
-                            LeaderboardEntry entry = new LeaderboardEntry();
-                            entry.playerName = nameMatch.Groups[1].Value;
-                            entry.completion_time_seconds = float.Parse(timeMatch.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
-                            entry.timestamp = dateMatch.Success ? dateMatch.Groups[1].Value : "";
-                            list.Add(entry);
+                            bool isCompleted = false;
+                            if (completedMatch.Success)
+                            {
+                                isCompleted = bool.Parse(completedMatch.Groups[1].Value);
+                            }
+
+                            if (isCompleted)
+                            {
+                                LeaderboardEntry entry = new LeaderboardEntry();
+                                entry.playerName = nameMatch.Groups[1].Value;
+                                entry.completion_time_seconds = float.Parse(timeMatch.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                                entry.timestamp = dateMatch.Success ? dateMatch.Groups[1].Value : "";
+                                entry.isCompleted = true;
+                                list.Add(entry);
+                            }
                         }
                     }
 

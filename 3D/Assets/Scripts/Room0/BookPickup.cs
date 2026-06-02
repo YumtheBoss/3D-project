@@ -16,12 +16,12 @@ public class BookPickup : MonoBehaviour
     /// <summary>Phát khi một trang mới được mở khóa.</summary>
     public static event System.Action OnPageUnlocked;
 
-    private static int s_unlockedPages = 1;
+    private static int s_unlockedPages = 3;
 
     /// <summary>Gọi từ TornPagePickup khi player nhặt được trang xé.</summary>
     public static void UnlockNextPage()
     {
-        s_unlockedPages++;
+        s_unlockedPages = Mathf.Clamp(s_unlockedPages + 1, 1, 3);
         OnPageUnlocked?.Invoke();
     }
 
@@ -49,34 +49,7 @@ public class BookPickup : MonoBehaviour
     [Range(0f, 1f)] public float volume = 0.8f;
 
     // ── Nội dung từng trang ──────────────────────────────────────
-    private static readonly string[] PAGES = new string[]
-    {
-        // Trang 1
-        "<size=115%><b>— Nhật ký —</b></size>\n\n" +
-        "Tôi không biết mình đã ở đây bao lâu rồi.\n\n" +
-        "Khi tỉnh dậy, tôi thấy mình nằm trong căn phòng này.\n" +
-        "Không có cửa sổ. Không có đồng hồ.\n" +
-        "Và cánh cửa... nó dẫn đến đúng căn phòng này.\n\n" +
-        "<color=#AAAAAA><i>— Nhiều dòng bị xé mất —</i></color>",
-
-        // Trang 2
-        "<size=115%><b>— Nhật ký (tiếp) —</b></size>\n\n" +
-        "Tôi đã đếm. Đây là lần thứ mười bảy tôi bước qua cánh cửa đó.\n\n" +
-        "Nhưng lần này... có gì đó <i>khác</i>.\n" +
-        "Chiếc ghế. Nó không ở chỗ cũ.\n\n" +
-        "<mark=#FFFF00AA><b>→ Căn phòng thay đổi giữa các lần đi qua.\n" +
-        "Phải quan sát thật kỹ.</b></mark>\n\n" +
-        "<color=#AAAAAA><i>— Trang bị xé không đều, mực nhòe —</i></color>",
-
-        // Trang 3
-        "<size=115%><b>— Nhật ký (tiếp) —</b></size>\n\n" +
-        "Tôi nghĩ mình hiểu ra rồi.\n\n" +
-        "Khi có <b>sự thay đổi</b> — phải quay lại.\n" +
-        "Khi <b>mọi thứ vẫn như cũ</b> — tiếp tục đi.\n\n" +
-        "<color=#CC0000><i>Đừng để nó đánh lừa bạn.\n" +
-        "Nó rất giỏi giả vờ bình thường.</i></color>\n\n" +
-        "<color=#AAAAAA><size=75%>— Phần còn lại của quyển sổ bị xé sạch —</size></color>",
-    };
+    private static readonly string[] PAGES = GameTextConfig.GetBookPages();
 
     // ── Private state ────────────────────────────────────────────
     private int currentPage = 0;
@@ -141,7 +114,7 @@ public class BookPickup : MonoBehaviour
         if (room == RoomManager.RoomState.Room0)
         {
             // Bắt đầu game mới — hiện lại sổ, reset toàn bộ
-            s_unlockedPages = 1;
+            s_unlockedPages = 3;
             bookEventFired = false;
             hasBeenPickedUp = false;
             SetMeshVisible(true);
@@ -253,6 +226,7 @@ public class BookPickup : MonoBehaviour
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        FirstPersonController.IsUIOpen = true;
     }
 
     private void ShowPage(int index)
@@ -303,6 +277,7 @@ public class BookPickup : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        FirstPersonController.IsUIOpen = false;
     }
 
     // ── UI helpers ───────────────────────────────────────────────

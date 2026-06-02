@@ -192,6 +192,7 @@ namespace GameUI
             
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            FirstPersonController.IsUIOpen = true;
 
             if (hudPanel != null) hudPanel.SetActive(false);
             if (interactionCanvas != null) interactionCanvas.SetActive(false);
@@ -218,6 +219,7 @@ namespace GameUI
             
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+            FirstPersonController.IsUIOpen = false;
 
             if (inventoryPanel != null) inventoryPanel.SetActive(false);
 
@@ -279,6 +281,7 @@ namespace GameUI
             
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            FirstPersonController.IsUIOpen = true;
 
             // Ẩn HUD và chữ tương tác khi Pause
             if (hudPanel != null) hudPanel.SetActive(false);
@@ -309,6 +312,7 @@ namespace GameUI
             
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+            FirstPersonController.IsUIOpen = false;
 
             pauseMenuPanel.SetActive(false);
             if (settingsPanel != null) settingsPanel.SetActive(false);

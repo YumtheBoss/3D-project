@@ -41,35 +41,11 @@ public class BibleNotePickup : MonoBehaviour
     [Tooltip("Cánh cửa ban đầu người chơi đi vào (để khóa không cho tương tác nữa)")]
     public GameObject entryDoor;
 
-    [Tooltip("Monologue phát sau khi player đóng ghi chú (\"Ánh sáng là vũ khí...\")")]
+    [Tooltip("Monologue phát sau khi player đóng ghi chú")]
     public InnerMonologue postNoteMonologue;
 
     // ── Nội dung ghi chú Room 3 ─────────────────────────────────
-    private const string NOTE_CONTENT =
-        "<color=#FFCC88><size=110%><b>✝  Kinh Thánh  ✝</b></size></color>\n\n" +
-
-        "<i>\"Sự sáng chiếu trong tối tăm,\n" +
-        "và tối tăm <b>không tiếp nhận</b> sự sáng.\"</i>\n" +
-        "<color=#777777><size=80%>— Giăng 1:5 —</size></color>\n\n" +
-
-        "<i>\"Đức Giê-hô-va là <b>sự sáng</b> và sự cứu rỗi của tôi;\n" +
-        "tôi sẽ sợ ai?\"</i>\n" +
-        "<color=#777777><size=80%>— Thi Thiên 27:1 —</size></color>\n\n" +
-
-        "<i>\"Hãy mặc lấy mọi khí giới của Đức Chúa Trời,\n" +
-        "để được đứng vững mà địch cùng mưu kế của ma quỷ.\"</i>\n" +
-        "<color=#777777><size=80%>— Ê-phê-sô 6:11 —</size></color>\n\n" +
-
-        "<mark=#1A1A0080>" +
-        "<color=#DDCC88><size=90%><b>[ Ghi chú bút chì — nét chữ run rẩy ]</b></size></color>\n\n" +
-        "<color=#CCBB77><i>" +
-        "Bóng tối không thể tồn tại khi có ánh sáng.\n" +
-        "Giữ lấy nguồn sáng — đó là vũ khí.\n\n" +
-        "Cần đủ lâu. Nhưng sau đó...\n" +
-        "đèn sẽ tắt một lúc.\n\n" +
-        "<b>Đừng hoảng loạn.</b>" +
-        "</i></color>" +
-        "</mark>";
+    private string NOTE_CONTENT => GameTextConfig.BIBLE_NOTE_ROOM3;
 
     private bool hasBeenPickedUp = false;
     private bool isOpen = false;
@@ -79,7 +55,6 @@ public class BibleNotePickup : MonoBehaviour
 
     private void Start()
     {
-        // Điều chỉnh range về 2.5 theo yêu cầu của bạn
         pickupRange = 2.5f;
 
         GameObject p = GameObject.FindGameObjectWithTag("Player");
@@ -126,13 +101,6 @@ public class BibleNotePickup : MonoBehaviour
         if (mr != null) visualTransform = mr.transform;
 
         float dist = Vector3.Distance(visualTransform.position, playerTransform.position);
-
-        // Debug log khi đứng gần tờ giấy (khoảng 7m)
-        if (dist <= 7f)
-        {
-            string rmName = RoomManager.Instance != null ? RoomManager.Instance.CurrentRoom.ToString() : "NULL";
-            Debug.Log($"[DEBUG-BibleNote] Player near. RoomManager: {rmName}, dist (visual): {dist:F2}, range: {pickupRange}");
-        }
 
         if (dist <= pickupRange)
         {
@@ -183,6 +151,7 @@ public class BibleNotePickup : MonoBehaviour
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        FirstPersonController.IsUIOpen = true;
     }
 
     public void CloseNote()
@@ -194,6 +163,7 @@ public class BibleNotePickup : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        FirstPersonController.IsUIOpen = false;
 
         // Thay thế đèn: tắt đèn cũ, bật đèn mới (chỉ chạy lần đầu khi hasBeenPickedUp)
         if (lightToReplace != null)    lightToReplace.gameObject.SetActive(false);
@@ -217,7 +187,6 @@ public class BibleNotePickup : MonoBehaviour
                 if (l != null && !l.gameObject.name.Contains("Replacement"))
                 {
                     l.gameObject.SetActive(false);
-                    Debug.Log($"[BibleNotePickup Self-Heal] Đã tắt đèn con dưới node R3: {l.gameObject.name}");
                 }
             }
 
@@ -227,7 +196,6 @@ public class BibleNotePickup : MonoBehaviour
             {
                 if (renderer != null && renderer.gameObject.name.ToLower().Contains("lamp"))
                 {
-                    // Tạo bản sao material để không làm thay đổi các phòng khác
                     Material[] mats = renderer.materials;
                     foreach (Material m in mats)
                     {
@@ -235,14 +203,11 @@ public class BibleNotePickup : MonoBehaviour
                         {
                             m.DisableKeyword("_EMISSION");
                             if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", Color.black);
-                            
-                            // Chuyển màu phát sáng trắng mặc định của bóng sang màu tối (tắt bóng)
                             if (m.HasProperty("_Color")) m.color = new Color(0.15f, 0.15f, 0.15f);
                             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", new Color(0.15f, 0.15f, 0.15f));
                         }
                     }
                     renderer.materials = mats;
-                    Debug.Log($"[BibleNotePickup Self-Heal] Đã tắt phát sáng của bóng đèn: {renderer.gameObject.name}");
                 }
             }
         }
@@ -251,7 +216,6 @@ public class BibleNotePickup : MonoBehaviour
         AnomalySystem.R3FlickerEvent flickerEvent = FindAnyObjectByType<AnomalySystem.R3FlickerEvent>();
         if (flickerEvent != null)
         {
-            // Tắt tất cả các đèn trong danh sách nhấp nháy của R3 để đảm bảo tối hoàn toàn ngoại trừ đèn thay thế
             if (flickerEvent.r3Lights != null)
             {
                 foreach (Light l in flickerEvent.r3Lights)
@@ -276,7 +240,12 @@ public class BibleNotePickup : MonoBehaviour
             if (doorScript != null) doorScript.enabled = true;
         }
 
-        postNoteMonologue?.PlayManually();
+        // Tự động gán và phát độc thoại sau khi nhặt giấy
+        if (postNoteMonologue != null)
+        {
+            postNoteMonologue.lines = GameTextConfig.GetMonologueLines("Room3_PostNote");
+            postNoteMonologue.PlayManually();
+        }
 
         // Biến mất hoàn toàn sau khi nhặt/đọc xong
         gameObject.SetActive(false);

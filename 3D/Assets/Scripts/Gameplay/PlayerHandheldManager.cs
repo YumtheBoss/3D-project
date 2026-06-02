@@ -45,6 +45,9 @@ public class PlayerHandheldManager : MonoBehaviour
     private float maxIntensity = 3.0f;
     private bool isBearLightActive = true; // Trạng thái bật/tắt của hào quang gấu
 
+    private static int lastQProcessFrame = -1;
+    private static int lastGProcessFrame = -1;
+
     // Các biến phục vụ Lerp mượt mà
     private float currentScale = 0f;
     private float targetScale = 0f;
@@ -81,8 +84,25 @@ public class PlayerHandheldManager : MonoBehaviour
         return transform; // Fallback cuối cùng
     }
 
+    private void Awake()
+    {
+        // Chỉ ghi nhận log các thông số cấu hình từ Inspector để bạn tiện theo dõi
+        Debug.Log($"[BearDebug] Awake: Đang nạp cấu hình từ Inspector: Pos={bearPositionOffset}, Rot={bearRotationOffset}, Scale={bearScaleMultiplier}");
+    }
+
     private void Start()
     {
+        // Dọn dẹp tất cả các visual gấu bông mồ côi (orphaned) tồn tại từ màn chơi/lần chơi trước
+        GameObject[] allGameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+        foreach (GameObject go in allGameObjects)
+        {
+            if (go != null && go.name == "_EquippedBearVisual" && go != equippedBearVisual && !string.IsNullOrEmpty(go.scene.name))
+            {
+                Debug.Log($"[BearDebug] Đã tự động dọn dẹp visual gấu bông mồ côi dư thừa: {go.name}");
+                Destroy(go);
+            }
+        }
+
         // Đăng ký sự kiện thay đổi trạng thái trang bị túi đồ
         InventoryManager.OnEquippedStateChanged += RefreshEquippedVisual;
         RefreshEquippedVisual();
@@ -102,46 +122,54 @@ public class PlayerHandheldManager : MonoBehaviour
         // 1. Phím tắt trang bị nhanh (Q)
         if (Input.GetKeyDown(quickEquipKey))
         {
-            // Kiểm tra sở hữu vật phẩm trực tiếp từ PlayerPrefs để tránh lỗi desync Singleton khi test
-            bool hasTeddy = PlayerPrefs.GetString("SavedInventory", "").Contains("TeddyBear");
-            if (hasTeddy)
+            if (Time.frameCount != lastQProcessFrame)
             {
-                bool currentlyEquipped = PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
-                if (!currentlyEquipped)
+                lastQProcessFrame = Time.frameCount;
+                // Kiểm tra sở hữu vật phẩm trực tiếp từ PlayerPrefs để tránh lỗi desync Singleton khi test
+                bool hasTeddy = PlayerPrefs.GetString("SavedInventory", "").Contains("TeddyBear");
+                if (hasTeddy)
                 {
-                    // Tự động trang bị gấu bông và bật hào quang lên
-                    isBearLightActive = true;
-                    if (InventoryManager.Instance != null)
+                    bool currentlyEquipped = PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
+                    if (!currentlyEquipped)
                     {
-                        InventoryManager.Instance.SetTeddyBearEquipped(true);
+                        // Tự động trang bị gấu bông và bật hào quang lên
+                        isBearLightActive = true;
+                        if (InventoryManager.Instance != null)
+                        {
+                            InventoryManager.Instance.SetTeddyBearEquipped(true);
+                        }
+                        else
+                        {
+                            PlayerPrefs.SetInt("IsTeddyBearEquipped", 1);
+                            PlayerPrefs.Save();
+                        }
+                        PlaySound(turnOnSound);
+                        Debug.Log("[PlayerHandheldManager] Phím Q: Tự động trang bị Gấu Bông và BẬT hào quang bảo vệ!");
                     }
                     else
                     {
-                        PlayerPrefs.SetInt("IsTeddyBearEquipped", 1);
-                        PlayerPrefs.Save();
+                        // Tự động cất gấu bông đi (tháo trang bị)
+                        if (InventoryManager.Instance != null)
+                        {
+                            InventoryManager.Instance.SetTeddyBearEquipped(false);
+                        }
+                        else
+                        {
+                            PlayerPrefs.SetInt("IsTeddyBearEquipped", 0);
+                            PlayerPrefs.Save();
+                        }
+                        PlaySound(turnOffSound);
+                        Debug.Log("[PlayerHandheldManager] Phím Q: Tự động cất Gấu Bông!");
                     }
-                    PlaySound(turnOnSound);
-                    Debug.Log("[PlayerHandheldManager] Phím Q: Tự động trang bị Gấu Bông và BẬT hào quang bảo vệ!");
                 }
                 else
                 {
-                    // Tự động cất gấu bông đi (tháo trang bị)
-                    if (InventoryManager.Instance != null)
+                    Debug.LogWarning("[PlayerHandheldManager] Không thể rút Gấu Bông vì bạn chưa nhặt nó trong game!");
+                    if (RoomManager.Instance != null)
                     {
-                        InventoryManager.Instance.SetTeddyBearEquipped(false);
+                        RoomManager.Instance.PlaySafetyMonologue("Mình chưa tìm thấy Gấu Bông bảo hộ... Nó phải ở quanh Phòng 4.");
                     }
-                    else
-                    {
-                        PlayerPrefs.SetInt("IsTeddyBearEquipped", 0);
-                        PlayerPrefs.Save();
-                    }
-                    PlaySound(turnOffSound);
-                    Debug.Log("[PlayerHandheldManager] Phím Q: Tự động cất Gấu Bông!");
                 }
-            }
-            else
-            {
-                Debug.LogWarning("[PlayerHandheldManager] Không thể rút Gấu Bông vì bạn chưa nhặt nó trong game!");
             }
         }
 
@@ -150,9 +178,13 @@ public class PlayerHandheldManager : MonoBehaviour
         {
             if (Input.GetKeyDown(toggleKey))
             {
-                isBearLightActive = !isBearLightActive;
-                PlaySound(isBearLightActive ? turnOnSound : turnOffSound);
-                Debug.Log($"[PlayerHandheldManager] Phím G: Đã {(isBearLightActive ? "BẬT" : "TẮT")} hào quang bảo vệ!");
+                if (Time.frameCount != lastGProcessFrame)
+                {
+                    lastGProcessFrame = Time.frameCount;
+                    isBearLightActive = !isBearLightActive;
+                    PlaySound(isBearLightActive ? turnOnSound : turnOffSound);
+                    Debug.Log($"[PlayerHandheldManager] Phím G: Đã {(isBearLightActive ? "BẬT" : "TẮT")} hào quang bảo vệ!");
+                }
             }
         }
 
@@ -223,21 +255,41 @@ public class PlayerHandheldManager : MonoBehaviour
         ScanAndDamageDemons();
     }
 
+    private float logTimer = 0f;
     private void LateUpdate()
     {
-        // Khoá cứng vị trí/góc xoay gấu bông theo Camera trong LateUpdate (chạy sau khi FirstPersonController xoay pitch)
         Transform camTrans = GetCameraTransform();
+
+        // Tự động hồi phục visual nếu bị mất do chuyển scene (script DontDestroyOnLoad nhưng visual có thể bị huỷ)
+        bool isEquipped = PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
+        if (isEquipped)
+        {
+            if (equippedBearVisual == null)
+            {
+                CreateBearVisual();
+            }
+            else if (!equippedBearVisual.activeSelf)
+            {
+                equippedBearVisual.SetActive(true);
+                Debug.Log("[PlayerHandheldManager] Safeguard: Đã tự động kích hoạt lại visual gấu bông bị ẩn!");
+            }
+        }
+
         if (camTrans != null && equippedBearVisual != null && equippedBearVisual.activeSelf)
         {
-            // Tự động kiểm tra và sửa lại quan hệ cha-con nếu bị lệch (do thứ tự khởi tạo Awake/Start hoặc reload cảnh)
-            if (equippedBearVisual.transform.parent != camTrans)
+            // Để tránh lỗi "Non-uniform Scale Skewing" (lệch tỷ lệ do Player bị scale dẹt),
+            // ta đưa equippedBearVisual ra làm Root thế giới (parent = null) và quản lý bằng tọa độ thế giới (World Space).
+            if (equippedBearVisual.transform.parent != null)
             {
-                equippedBearVisual.transform.SetParent(camTrans, false);
+                equippedBearVisual.transform.SetParent(null);
+                DontDestroyOnLoad(equippedBearVisual);
+                Debug.Log("[BearDebug] Unparented equippedBearVisual to World Space to prevent parent scale skewing.");
             }
 
-            // Đồng bộ hoá tuyệt đối vị trí và hướng xoay của visual cha theo Camera chính
-            equippedBearVisual.transform.localPosition = Vector3.zero;
-            equippedBearVisual.transform.localRotation = Quaternion.identity;
+            // Đồng bộ hoá tuyệt đối vị trí, hướng xoay và tỷ lệ scale thế giới theo Camera chính (đảm bảo không bị dẹt)
+            equippedBearVisual.transform.position = camTrans.position;
+            equippedBearVisual.transform.rotation = camTrans.rotation;
+            equippedBearVisual.transform.localScale = Vector3.one; // Ghi đè cứng scale (1, 1, 1) để xoá bỏ hoàn toàn tỉ lệ dẹt của Player
 
             // Neo chặt gấu bông ở đúng offset cấu hình để triệt tiêu mọi dịch chuyển sai lệch từ vật lý/hoạt ảnh
             if (bearInstance != null)
@@ -255,6 +307,19 @@ public class PlayerHandheldManager : MonoBehaviour
             if (bearGlowLight != null)
             {
                 bearGlowLight.transform.localPosition = bearPositionOffset + new Vector3(-0.05f, 0.1f, -0.1f);
+            }
+
+            // Định kỳ in log debug mỗi 2 giây
+            logTimer += Time.deltaTime;
+            if (logTimer >= 2f)
+            {
+                logTimer = 0f;
+                Debug.Log($"[BearDebug] Script attached to: {gameObject.name}. " +
+                          $"Camera: {camTrans.name} at {camTrans.position}. " +
+                          $"Visual parent: {(equippedBearVisual.transform.parent != null ? equippedBearVisual.transform.parent.name : "None (World Space)")}, " +
+                          $"worldPos: {equippedBearVisual.transform.position}. " +
+                          $"BearInstance: {(bearInstance != null ? bearInstance.name : "null")}, parent: {(bearInstance != null && bearInstance.transform.parent != null ? bearInstance.transform.parent.name : "null")}, " +
+                          $"localPos: {(bearInstance != null ? bearInstance.transform.localPosition.ToString() : "N/A")}, worldPos: {(bearInstance != null ? bearInstance.transform.position.ToString() : "N/A")}");
             }
         }
     }

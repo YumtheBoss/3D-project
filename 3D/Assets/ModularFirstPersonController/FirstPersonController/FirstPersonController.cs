@@ -40,6 +40,12 @@ public class FirstPersonController : MonoBehaviour
     private float pitch = 0.0f;
     private Image crosshairObject;
 
+    /// <summary>
+    /// Cờ tĩnh để các script UI bật/tắt khi mở/đóng canvas.
+    /// Khi true, camera và di chuyển sẽ bị khóa hoàn toàn.
+    /// </summary>
+    public static bool IsUIOpen { get; set; } = false;
+
     #region Camera Zoom Variables
 
     public bool enableZoom = true;
@@ -77,7 +83,7 @@ public class FirstPersonController : MonoBehaviour
 
     // Sprint Bar
     public bool useSprintBar = true;
-    public bool hideBarWhenFull = true;
+    public bool hideBarWhenFull = false;
     public Image sprintBarBG;
     public Image sprintBar;
     public float sprintBarWidthPercent = .3f;
@@ -250,6 +256,15 @@ public class FirstPersonController : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
         }
 
+        // Tự động gắn PlayerHandheldManager vào camera nếu chưa có (Self-Healing)
+        Camera cam = playerCamera != null ? playerCamera : GetComponentInChildren<Camera>();
+        if (cam == null) cam = Camera.main;
+        if (cam != null && cam.GetComponent<PlayerHandheldManager>() == null)
+        {
+            cam.gameObject.AddComponent<PlayerHandheldManager>();
+            Debug.Log("[FirstPersonController] Tự động gắn PlayerHandheldManager vào Camera!");
+        }
+
         if(crosshair && crosshairObject != null)
         {
             crosshairObject.sprite = crosshairImage;
@@ -262,8 +277,8 @@ public class FirstPersonController : MonoBehaviour
 
         #region Sprint Bar
 
-        if (sprintBarCG == null)
-            sprintBarCG = GetComponentInChildren<CanvasGroup>();
+        // Đảm bảo luôn sử dụng thanh thể lực theo yêu cầu game
+        useSprintBar = true;
 
         // Tự động dựng UI Stamina Bar nếu thiếu kéo thả trong Inspector (Self-Healing UI)
         if (useSprintBar && (sprintBarBG == null || sprintBar == null))
@@ -271,25 +286,52 @@ public class FirstPersonController : MonoBehaviour
             BuildDynamicSprintBar();
         }
 
+        if (sprintBarCG == null)
+        {
+            // Tìm CanvasGroup của chính SprintBar Canvas thay vì tìm bừa bãi trong các con
+            var dynamicCanvas = transform.Find("_SprintBarCanvas_Auto");
+            if (dynamicCanvas != null)
+            {
+                sprintBarCG = dynamicCanvas.GetComponent<CanvasGroup>();
+            }
+            else
+            {
+                sprintBarCG = GetComponentInChildren<CanvasGroup>();
+            }
+        }
+
+        // Thiết lập thời gian hồi thể lực cố định từ 3 - 5 giây (chọn 4 giây)
+        sprintCooldown = 4.0f;
+        sprintCooldownReset = sprintCooldown;
+
         if(useSprintBar && sprintBarBG != null && sprintBar != null)
         {
             sprintBarBG.gameObject.SetActive(true);
             sprintBar.gameObject.SetActive(true);
 
-            float screenWidth = Screen.width;
-            float screenHeight = Screen.height;
-
-            sprintBarWidth = screenWidth * sprintBarWidthPercent;
-            sprintBarHeight = screenHeight * sprintBarHeightPercent;
-            if (sprintBarWidth <= 0f) sprintBarWidth = 400f;
-            if (sprintBarHeight <= 0f) sprintBarHeight = 12f;
+            // Thiết lập kích thước cố định cho thanh đứng dọc: rộng 14px, cao 220px
+            sprintBarWidth = 14f;
+            sprintBarHeight = 220f;
 
             sprintBarBG.rectTransform.sizeDelta = new Vector3(sprintBarWidth, sprintBarHeight, 0f);
-            sprintBar.rectTransform.sizeDelta = new Vector3(sprintBarWidth - 2, sprintBarHeight - 2, 0f);
+            sprintBar.rectTransform.sizeDelta = new Vector3(sprintBarWidth - 4, sprintBarHeight - 4, 0f);
 
-            if(hideBarWhenFull && sprintBarCG != null)
+            // Đưa thanh thể lực đứng dọc ở góc dưới bên trái màn hình (cách cạnh trái và đáy 50px)
+            sprintBarBG.rectTransform.anchorMin = new Vector2(0f, 0f);
+            sprintBarBG.rectTransform.anchorMax = new Vector2(0f, 0f);
+            sprintBarBG.rectTransform.pivot = new Vector2(0f, 0f);
+            sprintBarBG.rectTransform.anchoredPosition = new Vector2(50f, 50f);
+
+            sprintBar.rectTransform.anchorMin = new Vector2(0f, 0f);
+            sprintBar.rectTransform.anchorMax = new Vector2(1f, 1f);
+            sprintBar.rectTransform.pivot = new Vector2(0.5f, 0f); // Pivot cạnh đáy để hồi thể lực tăng dần hướng lên trên
+            sprintBar.rectTransform.anchoredPosition = Vector2.zero;
+            sprintBar.rectTransform.offsetMin = new Vector2(2, 2);
+            sprintBar.rectTransform.offsetMax = new Vector2(-2, -2);
+
+            if(sprintBarCG != null)
             {
-                sprintBarCG.alpha = 0;
+                sprintBarCG.alpha = hideBarWhenFull ? 0f : 1f;
             }
         }
         else
@@ -307,11 +349,18 @@ public class FirstPersonController : MonoBehaviour
     {
         // Đọc mouse input mỗi frame để rotation mượt, lưu vào yaw/pitch
         // Rotation thực sự được apply ở FixedUpdate (body) và LateUpdate (camera)
-        if (cameraCanMove)
+        // Ba lớp bảo vệ: cameraCanMove + Cursor locked + timeScale > 0 + IsUIOpen == false
+        if (cameraCanMove && !IsUIOpen && Cursor.lockState == CursorLockMode.Locked && Time.timeScale > 0f)
         {
             yaw   += Input.GetAxis("Mouse X") * mouseSensitivity;
             pitch += Input.GetAxis("Mouse Y") * mouseSensitivity * (invertCamera ? 1f : -1f);
             pitch  = Mathf.Clamp(pitch, -maxLookAngle, maxLookAngle);
+        }
+        else
+        {
+            // Tiêu thụ mouse input buffer để tránh camera giật khi đóng canvas
+            Input.GetAxis("Mouse X");
+            Input.GetAxis("Mouse Y");
         }
 
         #region Zoom key detection (input only, no FOV lerp)
@@ -350,7 +399,9 @@ public class FirstPersonController : MonoBehaviour
             }
             else
             {
-                sprintRemaining = Mathf.Clamp(sprintRemaining += 1 * Time.deltaTime, 0, sprintDuration);
+                // Hồi phục hoàn toàn thể lực trong 4 giây (giữa 3 và 5 giây)
+                float recoverySpeed = sprintDuration / 4.0f;
+                sprintRemaining = Mathf.Clamp(sprintRemaining + recoverySpeed * Time.deltaTime, 0, sprintDuration);
             }
 
             if(isSprintCooldown)
@@ -366,7 +417,8 @@ public class FirstPersonController : MonoBehaviour
             if(useSprintBar && !unlimitedSprint && sprintBar != null)
             {
                 float sprintRemainingPercent = sprintRemaining / sprintDuration;
-                sprintBar.transform.localScale = new Vector3(sprintRemainingPercent, 1f, 1f);
+                // Co giãn theo chiều dọc (trục Y) từ dưới lên trên
+                sprintBar.transform.localScale = new Vector3(1f, sprintRemainingPercent, 1f);
             }
         }
 
@@ -459,8 +511,10 @@ public class FirstPersonController : MonoBehaviour
                 isWalking = false;
             }
 
-            // All movement calculations shile sprint is active
-            bool isSprintInput = Input.GetKey(sprintKey);
+            // Chỉ cho phép chạy nhanh khi người chơi thực sự nhấn phím di chuyển (W, A, S, D)
+            // giúp tránh lỗi đứng yên bấm giữ Shift vẫn bị hao tổn thể lực.
+            bool hasMovementInput = (moveH != 0f || moveV != 0f);
+            bool isSprintInput = Input.GetKey(sprintKey) && hasMovementInput;
             if (enableSprint && isSprintInput && sprintRemaining > 0f && !isSprintCooldown)
             {
                 targetVelocity = transform.TransformDirection(targetVelocity) * sprintSpeed;
@@ -714,7 +768,7 @@ public class FirstPersonController : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920, 1080);
 
         sprintBarCG = canvasObj.AddComponent<CanvasGroup>();
-        sprintBarCG.alpha = 0f; // Mặc định ẩn khi đầy
+        sprintBarCG.alpha = hideBarWhenFull ? 0f : 1f; // Tự động hiển thị nếu không bật ẩn khi đầy
 
         // 2. Tạo Ảnh Nền (Background Bar) - Màu đen mờ mỏng
         GameObject bgObj = new GameObject("SprintBarBG");
@@ -724,19 +778,13 @@ public class FirstPersonController : MonoBehaviour
         sprintBarBG.color = new Color(0.08f, 0.08f, 0.08f, 0.65f); // Đen mờ 65%
 
         RectTransform bgRt = bgObj.GetComponent<RectTransform>();
-        bgRt.anchorMin = new Vector2(0.5f, 0.15f); // Đặt ở chính giữa phía dưới màn hình (dưới Tutorial HUD)
-        bgRt.anchorMax = new Vector2(0.5f, 0.15f);
-        bgRt.pivot = new Vector2(0.5f, 0.5f);
+        bgRt.anchorMin = new Vector2(0f, 0f); // Dưới cùng bên trái
+        bgRt.anchorMax = new Vector2(0f, 0f);
+        bgRt.pivot = new Vector2(0f, 0f);
+        bgRt.anchoredPosition = new Vector2(50f, 50f);
         
-        float screenWidth = Screen.width;
-        float screenHeight = Screen.height;
-        sprintBarWidth = screenWidth * sprintBarWidthPercent;
-        sprintBarHeight = screenHeight * sprintBarHeightPercent;
-        
-        // Cố định kích thước lý tưởng nếu chạy tại Editor chưa tính toán được Resolution
-        if (sprintBarWidth <= 0f) sprintBarWidth = 400f;
-        if (sprintBarHeight <= 0f) sprintBarHeight = 12f;
-
+        sprintBarWidth = 14f;
+        sprintBarHeight = 220f;
         bgRt.sizeDelta = new Vector2(sprintBarWidth, sprintBarHeight);
 
         // Tạo Viền Neon Mỏng cho Stamina Bar
@@ -759,10 +807,11 @@ public class FirstPersonController : MonoBehaviour
         sprintBar.color = new Color(1f, 0.75f, 0.3f, 0.85f); // Vàng kim neon ấm áp
 
         RectTransform fillRt = fillObj.GetComponent<RectTransform>();
-        fillRt.anchorMin = new Vector2(0f, 0f); // Căn lề trái để co giãn từ trái sang phải
+        fillRt.anchorMin = new Vector2(0f, 0f);
         fillRt.anchorMax = new Vector2(1f, 1f);
-        fillRt.pivot = new Vector2(0f, 0.5f); // Pivot bên trái
-        fillRt.offsetMin = new Vector2(2, 2); // Padding bên trong 2px
+        fillRt.pivot = new Vector2(0.5f, 0f); // Pivot cạnh đáy
+        fillRt.anchoredPosition = Vector2.zero;
+        fillRt.offsetMin = new Vector2(2, 2);
         fillRt.offsetMax = new Vector2(-2, -2);
 
         Debug.Log("[FirstPersonController Self-Heal] Đã tự động dựng thành công UI Stamina Bar tuyệt đẹp tại runtime!");
@@ -771,6 +820,7 @@ public class FirstPersonController : MonoBehaviour
     /// <summary>Giải phóng trạng thái đóng băng di chuyển của người chơi khi chơi lại.</summary>
     public void UnfreezePlayer()
     {
+        enabled = true; // Bật lại script nếu bị tắt trong lúc caught sequence
         playerCanMove = true;
         cameraCanMove = true;
 

@@ -54,6 +54,10 @@ public class Room3Starter : MonoBehaviour
         else
             yield return null;
 
-        entryMonologue?.PlayManually();
+        if (entryMonologue != null)
+        {
+            entryMonologue.lines = GameTextConfig.GetMonologueLines("Room3_Entry");
+            entryMonologue.PlayManually();
+        }
     }
 }

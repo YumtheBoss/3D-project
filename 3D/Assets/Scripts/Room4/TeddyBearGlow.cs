@@ -119,7 +119,11 @@ public class TeddyBearGlow : MonoBehaviour
         maxIntensity = 2.5f;
 
         // 3. Phát độc thoại nội tâm rùng rợn của người chơi
-        interactMonologue?.PlayManually();
+        if (interactMonologue != null)
+        {
+            interactMonologue.lines = GameTextConfig.GetMonologueLines("Room4_BearInteract");
+            interactMonologue.PlayManually();
+        }
 
         // 4. Thêm gấu bông vào túi đồ (Inventory) làm trang bị nguồn sáng
         if (AnomalySystem.InventoryManager.Instance != null)

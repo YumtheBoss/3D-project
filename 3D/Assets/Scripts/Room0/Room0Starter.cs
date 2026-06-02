@@ -40,6 +40,10 @@ public class Room0Starter : MonoBehaviour
     private IEnumerator PlayAfterDelay()
     {
         yield return new WaitForSeconds(startDelay);
-        wakeUpMonologue?.PlayManually();
+        if (wakeUpMonologue != null)
+        {
+            wakeUpMonologue.lines = GameTextConfig.GetMonologueLines("Room0_WakeUp");
+            wakeUpMonologue.PlayManually();
+        }
     }
 }

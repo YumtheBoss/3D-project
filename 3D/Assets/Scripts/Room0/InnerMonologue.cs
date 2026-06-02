@@ -81,6 +81,15 @@ public class InnerMonologue : MonoBehaviour
         activeRoutine = StartCoroutine(PlayMonologue());
     }
 
+    private bool IsAdvanceKeyPressed()
+    {
+        return Input.GetKeyDown(KeyCode.Space) || 
+               Input.GetKeyDown(KeyCode.Return) || 
+               Input.GetKeyDown(KeyCode.KeypadEnter) || 
+               Input.GetMouseButtonDown(0) || 
+               Input.GetKeyDown(KeyCode.E);
+    }
+
     // ─────────────────────────────────────────────────────────
     //  Coroutine chính
     // ─────────────────────────────────────────────────────────
@@ -90,8 +99,10 @@ public class InnerMonologue : MonoBehaviour
         isRunning = true;
         monoCanvas.gameObject.SetActive(true);
 
-        foreach (var line in lines)
+        for (int i = 0; i < lines.Count; i++)
         {
+            var line = lines[i];
+
             // Reset
             monoText.text = "";
             monoText.alpha = 1f;
@@ -102,7 +113,14 @@ public class InnerMonologue : MonoBehaviour
             // Chờ: tự động hoặc chờ input
             if (line.autoAdvanceDelay > 0f)
             {
-                yield return new WaitForSeconds(line.autoAdvanceDelay);
+                float elapsed = 0f;
+                while (elapsed < line.autoAdvanceDelay)
+                {
+                    elapsed += Time.deltaTime;
+                    if (IsAdvanceKeyPressed())
+                        break;
+                    yield return null;
+                }
             }
             else
             {
@@ -112,8 +130,16 @@ public class InnerMonologue : MonoBehaviour
                 monoText.text = line.text;
             }
 
-            // Fade out dòng hiện tại
-            yield return FadeTextOut(fadeDuration);
+            // Nếu là dòng cuối cùng, thực hiện Fade out mượt mà (fadeDuration)
+            // Nếu còn dòng tiếp theo, chuyển tiếp nhanh (0.08 giây) để tạo cảm giác gõ nối tiếp linh hoạt
+            if (i == lines.Count - 1)
+            {
+                yield return FadeTextOut(fadeDuration);
+            }
+            else
+            {
+                yield return FadeTextOut(0.08f);
+            }
         }
 
         monoCanvas.gameObject.SetActive(false);
@@ -124,14 +150,26 @@ public class InnerMonologue : MonoBehaviour
     {
         float interval = 1f / typewriterSpeed;
         string visible = "";
-        foreach (char c in fullText)
+        
+        // Chờ 1 frame trước khi check input để tránh nhận input gối đầu từ phím bấm của câu trước
+        yield return null;
+
+        for (int i = 0; i < fullText.Length; i++)
         {
+            char c = fullText[i];
             visible += c;
             monoText.text = visible;
 
             // Phát tiếng gõ mỗi vài ký tự (không phải khoảng trắng)
             if (c != ' ' && c != '\n' && typingSound != null && audioSource != null)
                 audioSource.PlayOneShot(typingSound, typingVolume);
+
+            // Nhấn nút chuyển tiếp để hoàn thành nhanh câu thoại hiện tại
+            if (IsAdvanceKeyPressed())
+            {
+                monoText.text = fullText;
+                break;
+            }
 
             yield return new WaitForSeconds(interval);
         }
@@ -142,7 +180,7 @@ public class InnerMonologue : MonoBehaviour
         // Bỏ qua frame hiện tại để tránh nhận input thừa
         yield return null;
         yield return null;
-        while (!Input.anyKeyDown) yield return null;
+        while (!IsAdvanceKeyPressed()) yield return null;
     }
 
     private IEnumerator FadeTextOut(float duration)

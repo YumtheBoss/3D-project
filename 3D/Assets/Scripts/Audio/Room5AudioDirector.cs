@@ -156,6 +156,15 @@ public class Room5AudioDirector : MonoBehaviour
         if (musicSourceBreathing != null) musicSourceBreathing.Stop();
     }
 
+    /// <summary>
+    /// Tắt hoàn toàn hệ thống âm thanh Room 5 khi kết thúc game (thắng/thua).
+    /// </summary>
+    public void DisableRoom5Audio()
+    {
+        isRoom5Active = false;
+        StopAllRoom5Audio();
+    }
+
     private void Update()
     {
         if (!isRoom5Active) return;
