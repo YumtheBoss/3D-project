@@ -141,7 +141,7 @@ public class PlayerHandheldManager : MonoBehaviour
         // 3. Tính toán mục tiêu co giãn quả cầu và cường độ ánh sáng
         if (isEquipped && isBearLightActive)
         {
-            targetScale = bearScaleMultiplier;
+            targetScale = 1.0f; // Tiến trình scale chạy từ 0 -> 1.0f
 
             // Kiểm tra xem có đang thanh tẩy phong ấn nào ở Room 5 không (Tăng tốc độ nhịp đập và độ sáng)
             bool isPurging = Room5SealPurge.IsAnySealCurrentlyPurging();
@@ -161,16 +161,18 @@ public class PlayerHandheldManager : MonoBehaviour
         }
 
         // 4. Nội suy (Lerp) mượt mà các thông số visual
-        float scaleSpeed = Mathf.Max(bearScaleMultiplier, 0.05f) * 4f;
-        currentScale = Mathf.MoveTowards(currentScale, targetScale, Time.deltaTime * scaleSpeed); // Co giãn mượt mà trong ~0.25s
+        currentScale = Mathf.MoveTowards(currentScale, targetScale, Time.deltaTime * 4f); // Co giãn mượt mà trong ~0.25s
         
         if (bearSphere != null)
         {
-            bearSphere.transform.localScale = new Vector3(currentScale, currentScale, currentScale);
+            // Quả cầu primitive giữ scale nhỏ gọn 0.08f mặc định để không che mắt người chơi
+            float s = 0.08f * currentScale;
+            bearSphere.transform.localScale = new Vector3(s, s, s);
         }
         if (bearInstance != null)
         {
-            bearInstance.transform.localScale = bearOriginalScale * currentScale;
+            // Gấu bông 3D nhân thêm hệ số điều chỉnh bearScaleMultiplier
+            bearInstance.transform.localScale = bearOriginalScale * bearScaleMultiplier * currentScale;
         }
 
         currentIntensity = Mathf.MoveTowards(currentIntensity, targetIntensity, Time.deltaTime * 12f);
