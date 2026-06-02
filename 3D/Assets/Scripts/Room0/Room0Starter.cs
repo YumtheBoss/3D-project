@@ -32,9 +32,8 @@ public class Room0Starter : MonoBehaviour
 
     private void Start()
     {
-        // Nếu game bắt đầu ngay ở Room 0 (không qua RoomManager event),
-        // kiểm tra và kích hoạt luôn.
-        if (RoomManager.Instance == null || RoomManager.Instance.CurrentRoom == RoomManager.RoomState.Room0)
+        // Chỉ kích hoạt ở Start nếu hoàn toàn không có RoomManager (phục vụ test scene trực tiếp trong Editor)
+        if (RoomManager.Instance == null)
             StartCoroutine(PlayAfterDelay());
     }
 

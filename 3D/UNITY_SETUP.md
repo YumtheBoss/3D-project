@@ -20,21 +20,26 @@ Thực hiện theo thứ tự từ trên xuống dưới.
 
 ---
 
-## 2. Room 3 — Đèn pin bắt đầu có tác dụng (FlashlightController)
+## 2. Room 3 & Room 4 — Gấu Bông Phát Sáng & Nguồn Sáng Bảo Vệ (PlayerHandheldManager / FlashlightController)
 
-**Script:** `Assets/Scripts/AnomalySystem/FlashlightController.cs`
+**Script:** `Assets/Scripts/Gameplay/PlayerHandheldManager.cs` & `Assets/Scripts/AnomalySystem/FlashlightController.cs`
 
-FlashlightController đã được cập nhật để quét cả `DemonController` lẫn `FloorDemonAI`.  
-Không cần thay đổi gì thêm trong Inspector nếu đã setup trước đây.
+> 💡 **Lưu ý thực tế:** Game không thiết kế chức năng Đèn pin cầm tay thông thường cho người chơi. Thay vào đó, người chơi nhặt và trang bị **Gấu Bông Phát Sáng (Glowing Teddy Bear)** từ Túi đồ. Hào quang tỏa ra từ Gấu Bông (`PlayerHandheldManager`) hoạt động như một Lá chắn Tâm linh (Warding Shield) tự động quét và tiêu diệt quỷ. Các script quét quỷ trong code vẫn sử dụng cùng cơ chế tia sáng (Spot Light).
 
-### Kiểm tra nhanh:
+### Kiểm tra cấu hình trên Player:
+| Script Component | Nhiệm vụ |
+|---|---|
+| `PlayerHandheldManager` | Quản lý Gấu Bông, tự sinh quả cầu vàng HDR và Spot Light bảo vệ khi người chơi bấm Trang bị từ Túi đồ. |
+| `FlashlightController` | Cơ chế quét quỷ phụ trợ (tự động điều khiển bởi Gấu Bông/Lá chắn). |
+
+### Thông số quét quỷ gợi ý trên Inspector:
 | Field | Giá trị gợi ý |
 |---|---|
-| Spot Angle | 25 |
-| Light Range | 15 |
+| Spot Angle | 35 (góc chiếu nón sáng bảo vệ) |
+| Light Range | 15 (tầm xa quét quỷ) |
 | Light Intensity | 3 |
-| Light Vanish Time | 3 (giây chiếu để quỷ tan) |
-| Cooldown Duration | 5 (giây khóa đèn sau khi quỷ tan) |
+| Light Vanish Time | 3 (giây chiếu liên tục để quỷ tan biến) |
+| Cooldown Duration | 5 (giây khóa ánh sáng sau khi quỷ tan) |
 | Demon Layer | Layer chứa quỷ (hoặc để mặc định) |
 
 ---
@@ -154,7 +159,7 @@ Không cần thay đổi gì thêm trong Inspector nếu đã setup trước đ�
 | `is_walk_to_running` | Guard: giữ RUN không tự exit về WALK |
 | `is_attack_to_running` | Guard: giữ RUN không tự exit về ATTACK |
 | `is_damage_to_running` | RUN ↔ DAMAGE (flinch) |
-| `isDead` | AnyState → DEATH (khi bị đèn pin diệt) |
+| `isDead` | AnyState → DEATH (khi bị ánh sáng Gấu Bông tiêu diệt) |
 
 ### Cách setup transitions:
 - `IDLE → WALK`: `is_idie_to_walk = true`
@@ -170,7 +175,7 @@ Không cần thay đổi gì thêm trong Inspector nếu đã setup trước đ�
 ## 6. Checklist tổng hợp
 
 - [ ] Tạo GameObject `Room3Starter` trong scene Hospital, gán InnerMonologue
-- [ ] Kiểm tra FlashlightController đã có `Demon Layer` phù hợp
+- [ ] Kiểm tra PlayerHandheldManager / FlashlightController đã cấu hình đúng `Demon Layer`
 - [ ] Đặt trigger Box Collider cho `Room4ChaseTrigger` ở đầu hành lang
 - [ ] Tạo/gán prefab quỷ Room 4 (inactive mặc định)
 - [ ] Tạo `Room4ExitTrigger` ở cửa cuối hành lang Room 4

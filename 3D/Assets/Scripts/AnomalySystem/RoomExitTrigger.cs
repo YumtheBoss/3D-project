@@ -21,6 +21,7 @@ public class RoomExitTrigger : MonoBehaviour
     private Transform playerTransform;
     private AudioSource audioSource;
     private bool isNear = false;
+    private bool isInsideTrigger = false;
 
     private void OnEnable()
     {
@@ -34,25 +35,46 @@ public class RoomExitTrigger : MonoBehaviour
 
     private void HandleRoomEntered(RoomManager.RoomState room)
     {
-        if (room == RoomManager.RoomState.Room1 || room == RoomManager.RoomState.Room2)
+        if (room == RoomManager.RoomState.Room0 || room == RoomManager.RoomState.Room1)
         {
-            // Reset để có thể fire lại lần tiếp theo khi player đi qua lần nữa
+            // Đảm bảo bật lại khi quay lại Room 0 hoặc Room 1 sau restart
+            Collider col = GetComponent<Collider>();
+            if (col != null) col.enabled = true;
+            triggered = false;
+        }
+        else if (room == RoomManager.RoomState.Room2)
+        {
+            // Reset để có thể fire lại lần tiếp theo khi player đi qua lần nữa (nếu không dùng DoorChoice)
             triggered = false;
         }
 
-        // Room 2 dùng DoorChoice thay thế → ẩn trigger này đi
-        // Nhưng chỉ ẩn nếu DoorChoice thực sự có mặt trong scene
+        // Room 2 dùng DoorChoice hoặc Room2Door thay thế → vô hiệu hóa trigger này đi (nhưng giữ Script Enabled để nhận event)
         if (room == RoomManager.RoomState.Room2)
         {
-            var doorChoice = FindObjectOfType<AnomalySystem.DoorChoice>();
-            if (doorChoice != null)
+            var doorChoice = FindAnyObjectByType<AnomalySystem.DoorChoice>();
+            var room2Door = FindAnyObjectByType<Room2Door>();
+            if (doorChoice != null || room2Door != null)
             {
-                gameObject.SetActive(false);
+                Collider col = GetComponent<Collider>();
+                if (col != null) col.enabled = false;
+                triggered = true; // Khóa tương tác của Update và OnTriggerEnter
                 return;
             }
-            // Nếu không có DoorChoice, RoomExitTrigger vẫn hoạt động bình thường
-            Debug.Log("[RoomExitTrigger] Room 2: Không có DoorChoice, giữ RoomExitTrigger hoạt động.");
+            // Nếu không có DoorChoice/Room2Door, RoomExitTrigger vẫn hoạt động bình thường
+            Debug.Log("[RoomExitTrigger] Room 2: Không có DoorChoice hoặc Room2Door, giữ RoomExitTrigger hoạt động.");
         }
+    }
+
+    private void FindPlayerRobust()
+    {
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p == null) p = GameObject.Find("Player");
+        if (p == null)
+        {
+            CharacterController cc = FindAnyObjectByType<CharacterController>();
+            if (cc != null) p = cc.gameObject;
+        }
+        if (p != null) playerTransform = p.transform;
     }
 
     private void Start()
@@ -64,24 +86,41 @@ public class RoomExitTrigger : MonoBehaviour
         audioSource.spatialBlend = 0.5f;
         audioSource.playOnAwake = false;
 
-        GameObject p = GameObject.FindGameObjectWithTag("Player");
-        if (p != null) playerTransform = p.transform;
+        FindPlayerRobust();
 
-        // Nếu game bắt đầu ở Room 2, ẩn trigger ngay (chỉ khi có DoorChoice)
+        // Nếu game bắt đầu ở Room 2, ẩn trigger ngay (nếu có DoorChoice hoặc Room2Door)
         if (RoomManager.Instance != null && RoomManager.Instance.CurrentRoom == RoomManager.RoomState.Room2)
         {
-            var doorChoice = FindObjectOfType<AnomalySystem.DoorChoice>();
-            if (doorChoice != null)
-                gameObject.SetActive(false);
+            var doorChoice = FindAnyObjectByType<AnomalySystem.DoorChoice>();
+            var room2Door = FindAnyObjectByType<Room2Door>();
+            if (doorChoice != null || room2Door != null)
+            {
+                if (col != null) col.enabled = false;
+                triggered = true; // Khóa tương tác
+            }
         }
     }
 
     private void Update()
     {
-        if (triggered || playerTransform == null) return;
+        if (triggered) return;
 
+        if (playerTransform == null)
+        {
+            FindPlayerRobust();
+            if (playerTransform == null) return;
+        }
+
+        // Đo khoảng cách chính xác đến tâm collider để miễn nhiễm lỗi lệch pivot
         float dist = Vector3.Distance(transform.position, playerTransform.position);
-        isNear = dist <= promptDistance;
+        Collider myCol = GetComponent<Collider>();
+        if (myCol != null)
+        {
+            dist = Vector3.Distance(myCol.bounds.center, playerTransform.position);
+        }
+        
+        bool isClose = dist <= promptDistance;
+        isNear = isInsideTrigger || isClose;
 
         if (isNear && Input.GetKeyDown(KeyCode.E))
             Activate();
@@ -90,13 +129,31 @@ public class RoomExitTrigger : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (triggered) return;
-        if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player") && !other.name.Contains("Player")) return;
+        isInsideTrigger = true;
         if (!showPrompt) Activate();
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (!other.CompareTag("Player") && !other.name.Contains("Player")) return;
+        isInsideTrigger = false;
     }
 
     private void Activate()
     {
         if (triggered) return;
+
+        // Khóa an toàn check
+        if (RoomManager.Instance != null)
+        {
+            if (!RoomManager.Instance.CheckAndPlaySafetyLockMonologue())
+            {
+                // Bị khóa -> Không mở cửa và giữ nguyên trạng thái cho lần tương tác sau
+                return;
+            }
+        }
+
         triggered = true;
 
         if (doorOpenSound != null && audioSource != null)

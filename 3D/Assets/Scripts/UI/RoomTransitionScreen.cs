@@ -66,6 +66,8 @@ public class RoomTransitionScreen : MonoBehaviour
     //  LIFECYCLE
     // ══════════════════════════════════════════════════════════
 
+    private int lastRoomIndex = -1;
+
     private void Awake()
     {
         BuildUI();
@@ -86,8 +88,16 @@ public class RoomTransitionScreen : MonoBehaviour
         // Room 5 load scene riêng — không dùng transition này
         if (room == RoomManager.RoomState.Room5) return;
 
+        int currentIdx = (int)room;
+        if (currentIdx == lastRoomIndex)
+        {
+            // Tránh chạy lại hiệu ứng cuộn số khi người chơi chỉ dịch chuyển trong cùng một Room
+            return;
+        }
+        lastRoomIndex = currentIdx;
+
         if (activeRoutine != null) StopCoroutine(activeRoutine);
-        activeRoutine = StartCoroutine(PlayTransition((int)room));
+        activeRoutine = StartCoroutine(PlayTransition(currentIdx));
     }
 
     // ══════════════════════════════════════════════════════════

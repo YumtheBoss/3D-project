@@ -1,7 +1,14 @@
 fileFormatVersion: 2
 guid: 68e8705a507384c4d906d98a80f2600c
+AssetOrigin:
+  serializedVersion: 1
+  productId: 290587
+  packageName: MONS6
+  packageVersion: 1.0
+  assetPath: Assets/MONS 6/FBX/RUN.fbx
+  uploadId: 678238
 ModelImporter:
-  serializedVersion: 22200
+  serializedVersion: 24200
   internalIDToNameTable: []
   externalObjects:
   - first:
@@ -21,8 +28,6 @@ ModelImporter:
     optimizeGameObjects: 0
     removeConstantScaleCurves: 0
     motionNodeName: 
-    rigImportErrors: 
-    rigImportWarnings: 
     animationImportErrors: 
     animationImportWarnings: 
     animationRetargetingWarnings: 
@@ -49,7 +54,7 @@ ModelImporter:
       cycleOffset: 0
       loop: 0
       hasAdditiveReferencePose: 0
-      loopTime: 0
+      loopTime: 1
       loopBlend: 0
       loopBlendOrientation: 0
       loopBlendPositionY: 0
@@ -92,6 +97,9 @@ ModelImporter:
     maxBonesPerVertex: 4
     minBoneWeight: 0.001
     optimizeBones: 1
+    generateMeshLods: 0
+    meshLodGenerationFlags: 0
+    maximumMeshLod: -1
     meshOptimizationFlags: -1
     indexFormat: 0
     secondaryUVAngleDistortion: 8
@@ -141,10 +149,3 @@ ModelImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 290587
-  packageName: MONS6
-  packageVersion: 1.0
-  assetPath: Assets/MONS 6/FBX/RUN.fbx
-  uploadId: 678238

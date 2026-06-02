@@ -184,6 +184,18 @@ public class TornPagePickup : MonoBehaviour
         }
     }
 
+    private void FindPlayerRobust()
+    {
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p == null) p = GameObject.Find("Player");
+        if (p == null)
+        {
+            CharacterController cc = FindAnyObjectByType<CharacterController>();
+            if (cc != null) p = cc.gameObject;
+        }
+        if (p != null) playerTransform = p.transform;
+    }
+
     private void Update()
     {
         if (!isUnlocked) return;
@@ -194,7 +206,13 @@ public class TornPagePickup : MonoBehaviour
             return;
         }
 
-        if (hasBeenPickedUp || playerTransform == null) return;
+        if (hasBeenPickedUp) return;
+
+        if (playerTransform == null)
+        {
+            FindPlayerRobust();
+            if (playerTransform == null) return;
+        }
 
         float dist = Vector3.Distance(transform.position, playerTransform.position);
         if (dist <= pickupRange)
@@ -252,8 +270,8 @@ public class TornPagePickup : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // Biến mất hoàn toàn sau khi đọc xong
-        gameObject.SetActive(false);
+        // Biến mất hoàn toàn sau khi đọc xong (giữ Active để nhận OnRoomEntered)
+        SetPropVisible(false);
     }
 
     private void ShowHint()

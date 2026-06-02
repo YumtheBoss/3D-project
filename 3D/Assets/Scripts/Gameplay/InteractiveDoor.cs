@@ -12,6 +12,16 @@ public class InteractiveDoor : MonoBehaviour
     public bool triggerRoomTransition = true;
     [Tooltip("Phòng đích muốn chuyển tới (ví dụ: Room4)")]
     public RoomManager.RoomState targetRoom = RoomManager.RoomState.Room4;
+    [Tooltip("Tên GameObject spawn point tùy chọn. Nếu gán, người chơi sẽ được dịch chuyển tới đây thay vì spawn point mặc định của RoomManager.")]
+    public string customSpawnPointName;
+
+    [Header("Hiệu ứng chuyển cảnh")]
+    [Tooltip("Nếu tích chọn, màn hình sẽ tự động fade tối đen lại trước khi dịch chuyển, sau đó sáng dần lên ở vị trí spawn mới.")]
+    public bool useFadeTransition = true;
+
+    [Header("Hành vi vật lý")]
+    [Tooltip("Nếu tích chọn, vật thể cửa này sẽ tự ẩn đi (SetActive(false)) sau khi mở để người chơi có thể tự đi qua.")]
+    public bool deactivateOnOpen = false;
 
     [Header("Tương tác")]
     [Tooltip("Khoảng cách tối đa để có thể tương tác mở cửa")]
@@ -61,6 +71,28 @@ public class InteractiveDoor : MonoBehaviour
     public void OpenDoor()
     {
         if (isOpened) return;
+
+        // Nếu người chơi đang ở Room 3 và cố tình quay lại cửa vào (InteractiveDoor hướng về Room 0, 1, 2)
+        if (RoomManager.Instance != null && RoomManager.Instance.CurrentRoom == RoomManager.RoomState.Room3)
+        {
+            if (targetRoom == RoomManager.RoomState.Room0 || targetRoom == RoomManager.RoomState.Room1 || targetRoom == RoomManager.RoomState.Room2)
+            {
+                string blockText = "Cánh cửa này đã bị khóa chặt từ bên ngoài... Mình cảm giác có điều gì đó không lành ở phía sau. Mình phải đi tiếp qua cánh cửa đang chiếu đèn đỏ ở đằng kia.";
+                RoomManager.Instance.PlaySafetyMonologue(blockText);
+                return;
+            }
+        }
+
+        // Khóa an toàn check
+        if (RoomManager.Instance != null)
+        {
+            if (!RoomManager.Instance.CheckAndPlaySafetyLockMonologue())
+            {
+                // Bị khóa -> Không mở cửa và giữ nguyên trạng thái cho lần tương tác sau
+                return;
+            }
+        }
+
         isOpened = true;
 
         // Phát âm thanh tiếng mở cửa
@@ -72,7 +104,29 @@ public class InteractiveDoor : MonoBehaviour
         // Kích hoạt dịch chuyển tức thời qua RoomManager (sẽ đưa player tới Room4Spawn tương ứng)
         if (triggerRoomTransition)
         {
-            RoomManager.Instance?.EnterRoom(targetRoom);
+            string spawnName = !string.IsNullOrEmpty(customSpawnPointName) ? customSpawnPointName : "";
+            
+            if (useFadeTransition)
+            {
+                RoomManager.Instance?.EnterRoomWithFadeTransition(targetRoom, spawnName);
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(spawnName))
+                {
+                    RoomManager.Instance?.EnterRoomWithCustomSpawn(targetRoom, spawnName);
+                }
+                else
+                {
+                    RoomManager.Instance?.EnterRoom(targetRoom);
+                }
+            }
+        }
+
+        // Tự động ẩn vật thể cửa đi nếu tùy chọn này được kích hoạt
+        if (deactivateOnOpen)
+        {
+            gameObject.SetActive(false);
         }
     }
 

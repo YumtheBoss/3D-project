@@ -73,32 +73,24 @@ public class Room5ExitDoor : MonoBehaviour
 
     private void OnDoorInteract()
     {
-        if (openSound != null && audioSource != null)
-            audioSource.PlayOneShot(openSound);
-
-        if (isGoodEnding)
+        // Khóa cửa cho đến khi giải trừ xong 3 phong ấn tà ác
+        if (!Room5SealPurge.AllSealsCleared())
         {
-            used = true;
-            RoomManager.Instance?.TriggerGoodEnding();
+            Debug.LogWarning("[Room5ExitDoor] Lối thoát đang bị phong ấn! Hãy giải trừ tất cả phong ấn bằng Gấu bông.");
+            return;
         }
-        else
+
+        // Cổng dịch chuyển đã mở, cửa vent bị chặn cứng do tà khí bùng nổ lúc thanh tẩy
+        Debug.LogWarning("[Room5ExitDoor] Lối thoát hiểm này đã bị chặn cứng! Cần tìm Cổng Dịch Chuyển ở tâm phòng.");
+        if (RoomManager.Instance != null)
         {
-            wrongAttempts++;
-            if (wrongAttempts >= maxWrongAttempts)
-            {
-                used = true;
-                StartCoroutine(WrongDoorFinalSequence());
-            }
-            else
-            {
-                StartCoroutine(WrongDoorSequence());
-            }
+            RoomManager.Instance.PlaySafetyMonologue("Cánh cửa này đã bị tà khí bùng nổ làm sập hoàn toàn... Mình phải đi vào Cổng Dịch Chuyển Ánh Sáng ở tâm phòng!");
         }
     }
 
     private IEnumerator WrongDoorSequence()
     {
-        JumpscareController jsc = FindObjectOfType<JumpscareController>();
+        JumpscareController jsc = FindAnyObjectByType<JumpscareController>();
         jsc?.TriggerJumpscare();
 
         yield return new WaitForSeconds(2.8f);
@@ -109,7 +101,7 @@ public class Room5ExitDoor : MonoBehaviour
 
     private IEnumerator WrongDoorFinalSequence()
     {
-        JumpscareController jsc = FindObjectOfType<JumpscareController>();
+        JumpscareController jsc = FindAnyObjectByType<JumpscareController>();
         jsc?.TriggerJumpscare();
 
         yield return new WaitForSeconds(2.8f);
@@ -128,7 +120,17 @@ public class Room5ExitDoor : MonoBehaviour
         style.normal.textColor = Color.white;
         style.alignment = TextAnchor.MiddleCenter;
 
-        GUI.Label(new Rect(Screen.width / 2f - 200, Screen.height / 2f + 50, 400, 50),
-            "Nhấn [E] để Chui Qua Vent", style);
+        // Hiển thị cảnh báo nếu vẫn còn phong ấn chưa giải
+        if (!Room5SealPurge.AllSealsCleared())
+        {
+            style.normal.textColor = new Color(1f, 0.4f, 0.4f); // Đỏ cảnh báo phong ấn
+            GUI.Label(new Rect(Screen.width / 2f - 400, Screen.height / 2f + 50, 800, 50),
+                $"<b>Lối thoát hiểm đang bị phong ấn bởi tà khí! ({Room5SealPurge.GetProgressString()})</b>", style);
+            return;
+        }
+
+        style.normal.textColor = new Color(1f, 0.6f, 0.2f); // Cam cảnh báo
+        GUI.Label(new Rect(Screen.width / 2f - 250, Screen.height / 2f + 50, 500, 50),
+            "<b>Cửa này đã bị chặn cứng! Hãy tìm Cổng Dịch Chuyển ở tâm phòng!</b>", style);
     }
 }

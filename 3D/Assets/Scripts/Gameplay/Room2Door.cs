@@ -108,7 +108,7 @@ public class Room2Door : MonoBehaviour
 
     private IEnumerator WrongChoiceSequence()
     {
-        JumpscareController jsc = FindObjectOfType<JumpscareController>();
+        JumpscareController jsc = FindAnyObjectByType<JumpscareController>();
         jsc?.TriggerJumpscare();
 
         yield return new WaitForSeconds(jumpscareDelay);

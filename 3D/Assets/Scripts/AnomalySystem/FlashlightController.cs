@@ -66,7 +66,8 @@ public class FlashlightController : MonoBehaviour
         // Tạo Spot Light con của Camera
         GameObject lightObj = new GameObject("_Flashlight");
         lightObj.transform.SetParent(playerCamera.transform, false);
-        lightObj.transform.localPosition = new Vector3(0.15f, -0.1f, 0.3f);
+        // Đặt nguồn sáng trùng khít với tâm Camera chính để triệt tiêu hoàn toàn lệch góc (parallax offset)
+        lightObj.transform.localPosition = new Vector3(0f, 0f, 0f);
         lightObj.transform.localRotation = Quaternion.identity;
 
         flashlight = lightObj.AddComponent<Light>();
@@ -167,22 +168,36 @@ public class FlashlightController : MonoBehaviour
 
     private void ScanForDemons()
     {
+        if (playerCamera == null)
+        {
+            if (FirstPersonController.Instance != null && FirstPersonController.Instance.playerCamera != null)
+                playerCamera = FirstPersonController.Instance.playerCamera;
+            else
+                playerCamera = Camera.main;
+        }
         if (flashlight == null || playerCamera == null) return;
 
         Collider[] hits = Physics.OverlapSphere(
             playerCamera.transform.position, lightRange, demonLayer);
 
+        // Tăng gấp 3 lần sát thương/tốc độ đốt quỷ khi người chơi zoom camera
+        bool isZooming = (FirstPersonController.Instance != null && FirstPersonController.Instance.IsZoomed) || Input.GetKey(KeyCode.Mouse1);
+        float multiplier = isZooming ? 3.0f : 1.0f;
+
         foreach (Collider col in hits)
         {
-            Vector3 dir = (col.transform.position - playerCamera.transform.position).normalized;
+            // Sử dụng tâm hình học của Collider (bounds.center - thường ở ngực quái) thay vì chân quái (col.transform.position)
+            // giúp tránh hiện tượng lệch góc chúc xuống khi quái lại gần làm trượt nón sáng
+            Vector3 targetCenter = col.bounds.center;
+            Vector3 dir = (targetCenter - playerCamera.transform.position).normalized;
             float angle = Vector3.Angle(playerCamera.transform.forward, dir);
             if (angle <= spotAngle * 0.5f)
             {
-                DemonController demon = col.GetComponent<DemonController>();
-                demon?.OnLightHit(Time.deltaTime);
+                DemonController demon = col.GetComponentInParent<DemonController>();
+                demon?.OnLightHit(Time.deltaTime * multiplier, isZooming);
 
-                FloorDemonAI floorDemon = col.GetComponent<FloorDemonAI>();
-                floorDemon?.OnLightHit(Time.deltaTime);
+                FloorDemonAI floorDemon = col.GetComponentInParent<FloorDemonAI>();
+                floorDemon?.OnLightHit(Time.deltaTime * multiplier, isZooming);
             }
         }
     }

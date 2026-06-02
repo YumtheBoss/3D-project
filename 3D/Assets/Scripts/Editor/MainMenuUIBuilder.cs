@@ -19,7 +19,7 @@ namespace GameUI
         public static void BuildOrUpgradeMenu()
         {
             // 1. Tìm hoặc tạo MainMenu Controller trong Scene
-            MainMenu mainMenu = Object.FindFirstObjectByType<MainMenu>();
+            MainMenu mainMenu = Object.FindAnyObjectByType<MainMenu>();
             if (mainMenu == null)
             {
                 GameObject controller = new GameObject("MainMenuController");
@@ -29,7 +29,7 @@ namespace GameUI
             }
 
             // --- BẢO VỆ CUTSCENE & LOADING PANELS TRƯỚC KHI XOÁ CANVAS ---
-            CutsceneManager cutsceneMgr = Object.FindFirstObjectByType<CutsceneManager>(FindObjectsInactive.Include);
+            CutsceneManager cutsceneMgr = Object.FindAnyObjectByType<CutsceneManager>(FindObjectsInactive.Include);
             GameObject preservedCutscenePanel = null;
             GameObject preservedLoadingPanel = null;
             UnityEngine.Video.VideoPlayer preservedVideoPlayer = null;
@@ -191,10 +191,11 @@ namespace GameUI
             vlg.childControlWidth = false;
             vlg.childControlHeight = false;
 
-            // 5. Sinh các nút: Continue, New Game, Settings, Exit
+            // 5. Sinh các nút: Continue, New Game, Settings, Leaderboard, Exit
             CreateStyledButton(buttonContainer.transform, "ContinueButton", "CONTINUE", mainMenu, "ClickContinue");
             CreateStyledButton(buttonContainer.transform, "NewGameButton", "NEW GAME", mainMenu, "ClickNewGame");
             CreateStyledButton(buttonContainer.transform, "SettingsButton", "SETTINGS", mainMenu, "ShowSettings");
+            CreateStyledButton(buttonContainer.transform, "LeaderboardButton", "LEADERBOARD", mainMenu, "ShowLeaderboard");
             CreateStyledButton(buttonContainer.transform, "ExitButton", "EXIT", mainMenu, "ClickExit");
 
             // 6. Tạo Settings Panel
@@ -276,6 +277,139 @@ namespace GameUI
             hoverBack.targetText = textBack;
             hoverBack.hoverColor = new Color(0.9f, 0.1f, 0.1f, 1f);
 
+            // 6.5 Tạo Leaderboard Panel
+            GameObject leaderboardPanel = new GameObject("Leaderboard Panel");
+            leaderboardPanel.transform.SetParent(canvasObj.transform, false);
+            RectTransform rectLP = leaderboardPanel.AddComponent<RectTransform>();
+            rectLP.anchorMin = Vector2.zero;
+            rectLP.anchorMax = Vector2.one;
+            rectLP.sizeDelta = Vector2.zero;
+            
+            Image imgLP = leaderboardPanel.AddComponent<Image>();
+            imgLP.color = new Color(0f, 0f, 0f, 0.92f); // Nền tối sẫm, kinh dị
+
+            mainMenu.leaderboardPanel = leaderboardPanel;
+            SetupPanelCanvasGroup(leaderboardPanel);
+            leaderboardPanel.SetActive(false); // Ẩn mặc định
+
+            // Tiêu đề Bảng xếp hạng
+            GameObject lTitleObj = new GameObject("LeaderboardTitle");
+            lTitleObj.transform.SetParent(leaderboardPanel.transform, false);
+            RectTransform rectLTitle = lTitleObj.AddComponent<RectTransform>();
+            rectLTitle.anchorMin = new Vector2(0.5f, 0.85f);
+            rectLTitle.anchorMax = new Vector2(0.5f, 0.95f);
+            rectLTitle.anchoredPosition = Vector2.zero;
+            TextMeshProUGUI textLTitle = lTitleObj.AddComponent<TextMeshProUGUI>();
+            textLTitle.text = "＝ LEADERBOARD ＝";
+            textLTitle.fontSize = 48;
+            textLTitle.fontStyle = FontStyles.Bold | FontStyles.Italic;
+            textLTitle.color = new Color(0.9f, 0.1f, 0.1f, 1f); // Màu đỏ máu phát sáng
+            textLTitle.alignment = TextAlignmentOptions.Center;
+
+            // Tạo nhãn tiêu đề cột: Rank | Player Name | Completion Time | Date
+            GameObject headerObj = new GameObject("ColumnsHeader");
+            headerObj.transform.SetParent(leaderboardPanel.transform, false);
+            RectTransform rectHeader = headerObj.AddComponent<RectTransform>();
+            rectHeader.anchorMin = new Vector2(0.15f, 0.73f);
+            rectHeader.anchorMax = new Vector2(0.85f, 0.79f);
+            rectHeader.offsetMin = rectHeader.offsetMax = Vector2.zero;
+
+            HorizontalLayoutGroup hlgHeader = headerObj.AddComponent<HorizontalLayoutGroup>();
+            hlgHeader.childForceExpandWidth = false;
+            hlgHeader.childControlWidth = true;
+            hlgHeader.childForceExpandHeight = true;
+            hlgHeader.childControlHeight = true;
+            
+            CreateHeaderColumn(headerObj.transform, "RANK", 0.15f);
+            CreateHeaderColumn(headerObj.transform, "PLAYER NAME", 0.45f);
+            CreateHeaderColumn(headerObj.transform, "TIME", 0.2f);
+            CreateHeaderColumn(headerObj.transform, "DATE", 0.2f);
+
+            // Một đường phân cách ngang mỏng màu đỏ máu
+            GameObject divider = new GameObject("Divider");
+            divider.transform.SetParent(leaderboardPanel.transform, false);
+            RectTransform rectDiv = divider.AddComponent<RectTransform>();
+            rectDiv.anchorMin = new Vector2(0.15f, 0.72f);
+            rectDiv.anchorMax = new Vector2(0.85f, 0.725f);
+            rectDiv.offsetMin = rectDiv.offsetMax = Vector2.zero;
+            Image divImg = divider.AddComponent<Image>();
+            divImg.color = new Color(0.6f, 0.05f, 0.05f, 0.8f);
+
+            // Tạo Scroll View chứa danh sách điểm số
+            GameObject scrollViewObj = new GameObject("LeaderboardScrollView");
+            scrollViewObj.transform.SetParent(leaderboardPanel.transform, false);
+            RectTransform rectSV = scrollViewObj.AddComponent<RectTransform>();
+            rectSV.anchorMin = new Vector2(0.15f, 0.22f);
+            rectSV.anchorMax = new Vector2(0.85f, 0.7f);
+            rectSV.offsetMin = rectSV.offsetMax = Vector2.zero;
+
+            ScrollRect scrollRect = scrollViewObj.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.scrollSensitivity = 25f;
+
+            // Viewport
+            GameObject viewportObj = new GameObject("Viewport");
+            viewportObj.transform.SetParent(scrollViewObj.transform, false);
+            RectTransform rectVP = viewportObj.AddComponent<RectTransform>();
+            rectVP.anchorMin = Vector2.zero;
+            rectVP.anchorMax = Vector2.one;
+            rectVP.offsetMin = rectVP.offsetMax = Vector2.zero;
+            viewportObj.AddComponent<RectMask2D>();
+            scrollRect.viewport = rectVP;
+
+            // Content Container
+            GameObject contentObj = new GameObject("Content");
+            contentObj.transform.SetParent(viewportObj.transform, false);
+            RectTransform rectContent = contentObj.AddComponent<RectTransform>();
+            rectContent.anchorMin = new Vector2(0f, 1f);
+            rectContent.anchorMax = new Vector2(1f, 1f);
+            rectContent.pivot = new Vector2(0.5f, 1f);
+            rectContent.sizeDelta = new Vector2(0, 300);
+            
+            VerticalLayoutGroup vlgContent = contentObj.AddComponent<VerticalLayoutGroup>();
+            vlgContent.spacing = 10;
+            vlgContent.childForceExpandWidth = true;
+            vlgContent.childForceExpandHeight = false;
+            vlgContent.childControlWidth = true;
+            vlgContent.childControlHeight = true;
+
+            ContentSizeFitter csf = contentObj.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            scrollRect.content = rectContent;
+            mainMenu.leaderboardContainer = rectContent; // Tự gán container chứa danh sách
+
+            // Tạo nút Back trong Leaderboard Panel
+            GameObject lBackBtnObj = new GameObject("LeaderboardBackButton");
+            lBackBtnObj.transform.SetParent(leaderboardPanel.transform, false);
+            RectTransform rectLBack = lBackBtnObj.AddComponent<RectTransform>();
+            rectLBack.anchorMin = new Vector2(0.5f, 0.08f);
+            rectLBack.anchorMax = new Vector2(0.5f, 0.16f);
+            rectLBack.sizeDelta = new Vector2(250, 50);
+            rectLBack.anchoredPosition = Vector2.zero;
+
+            Image imgLBack = lBackBtnObj.AddComponent<Image>();
+            imgLBack.color = new Color(0.15f, 0.15f, 0.15f, 0.9f);
+            Button btnLBack = lBackBtnObj.AddComponent<Button>();
+            UnityEditor.Events.UnityEventTools.AddPersistentListener(btnLBack.onClick, mainMenu.CloseLeaderboard);
+
+            GameObject lBackTextObj = new GameObject("Text");
+            lBackTextObj.transform.SetParent(lBackBtnObj.transform, false);
+            RectTransform rectLBackText = lBackTextObj.AddComponent<RectTransform>();
+            rectLBackText.anchorMin = Vector2.zero;
+            rectLBackText.anchorMax = Vector2.one;
+            rectLBackText.sizeDelta = Vector2.zero;
+            TextMeshProUGUI textLBack = lBackTextObj.AddComponent<TextMeshProUGUI>();
+            textLBack.text = "BACK TO MENU";
+            textLBack.fontSize = 24;
+            textLBack.color = Color.white;
+            textLBack.alignment = TextAlignmentOptions.Center;
+
+            UIHoverEffect hoverLBack = lBackBtnObj.AddComponent<UIHoverEffect>();
+            hoverLBack.targetText = textLBack;
+            hoverLBack.hoverColor = new Color(0.9f, 0.1f, 0.1f, 1f);
+
             // Đảm bảo có EventSystem
             EnsureEventSystem();
 
@@ -345,6 +479,8 @@ namespace GameUI
             if (methodName == "ClickContinue") action = mainMenu.ClickContinue;
             else if (methodName == "ClickNewGame") action = mainMenu.ClickNewGame;
             else if (methodName == "ShowSettings") action = mainMenu.ShowSettings;
+            else if (methodName == "ShowLeaderboard") action = mainMenu.ShowLeaderboard;
+            else if (methodName == "CloseLeaderboard") action = mainMenu.CloseLeaderboard;
             else if (methodName == "ClickExit") action = mainMenu.ClickExit;
             else if (methodName == "ShowMainMenu") action = mainMenu.ShowMainMenu;
 
@@ -459,7 +595,7 @@ namespace GameUI
 
         private static void EnsureEventSystem()
         {
-            EventSystem es = Object.FindFirstObjectByType<EventSystem>();
+            EventSystem es = Object.FindAnyObjectByType<EventSystem>();
             if (es == null)
             {
                 GameObject esObj = new GameObject("EventSystem");
@@ -528,6 +664,22 @@ namespace GameUI
                 if (found != null) return found;
             }
             return null;
+        }
+
+        private static void CreateHeaderColumn(Transform parent, string label, float flexWidth)
+        {
+            GameObject col = new GameObject(label + "_Col");
+            col.transform.SetParent(parent, false);
+            LayoutElement le = col.AddComponent<LayoutElement>();
+            le.preferredWidth = 800f * flexWidth;
+            le.flexibleWidth = flexWidth;
+
+            TextMeshProUGUI txt = col.AddComponent<TextMeshProUGUI>();
+            txt.text = label;
+            txt.fontSize = 22;
+            txt.fontStyle = FontStyles.Bold;
+            txt.color = new Color(0.7f, 0.6f, 0.5f, 1f);
+            txt.alignment = TextAlignmentOptions.Center;
         }
     }
 }

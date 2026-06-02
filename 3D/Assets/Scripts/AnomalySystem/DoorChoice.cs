@@ -85,7 +85,7 @@ namespace AnomalySystem
                 else if (RoomManager.Instance != null)
                 {
                     // Kiểm tra chọn đúng cửa thông qua AnomalyManager
-                    AnomalyManager am = FindObjectOfType<AnomalyManager>();
+                    AnomalyManager am = FindAnyObjectByType<AnomalyManager>();
                     if (am != null)
                     {
                         bool correct = (isAnomalyDoor == am.isCurrentLevelAnomaly);

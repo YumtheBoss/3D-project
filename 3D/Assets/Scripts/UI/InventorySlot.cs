@@ -42,9 +42,10 @@ namespace GameUI
             // Lấy Image nền của chính ô này (để đổi màu)
             backgroundImage = GetComponent<Image>();
             
-            // Đảm bảo Raycast Target được bật (để click chuột hoạt động!)
+            // Đảm bảo Image nền và Raycast Target được bật (Tự động phục hồi - Self-Healing)
             if (backgroundImage != null)
             {
+                backgroundImage.enabled = true;
                 backgroundImage.raycastTarget = true;
             }
 
@@ -92,6 +93,38 @@ namespace GameUI
                     hoverAsset = hvTf.gameObject;
                 }
             }
+
+        }
+
+        /// <summary>
+        /// Ép giãn nở 100% cho đối tượng RectTransform và toàn bộ các thành phần con của nó.
+        /// </summary>
+        private void ForceStretch(GameObject go)
+        {
+            if (go == null) return;
+            RectTransform rt = go.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                rt.localScale = Vector3.one;
+            }
+
+            // Ép giãn nở tất cả các đối tượng con (ví dụ: các mảnh viền góc đỏ)
+            foreach (Transform child in go.transform)
+            {
+                RectTransform childRt = child.GetComponent<RectTransform>();
+                if (childRt != null)
+                {
+                    childRt.anchorMin = Vector2.zero;
+                    childRt.anchorMax = Vector2.one;
+                    childRt.offsetMin = Vector2.zero;
+                    childRt.offsetMax = Vector2.zero;
+                    childRt.localScale = Vector3.one;
+                }
+            }
         }
 
         public void Setup(ItemData item, InventoryUI ui)
@@ -124,8 +157,8 @@ namespace GameUI
                     RectTransform rt = spawnedPrefab.GetComponent<RectTransform>();
                     if (rt != null)
                     {
-                        rt.anchorMin = new Vector2(0.1f, 0.1f);
-                        rt.anchorMax = new Vector2(0.9f, 0.9f);
+                        rt.anchorMin = Vector2.zero;
+                        rt.anchorMax = Vector2.one;
                         rt.offsetMin = Vector2.zero;
                         rt.offsetMax = Vector2.zero;
                     }
@@ -180,7 +213,8 @@ namespace GameUI
                     ? new Color(filledColor.r + 0.1f, filledColor.g + 0.1f, filledColor.b + 0.1f, 1f)
                     : new Color(emptyColor.r + 0.1f, emptyColor.g + 0.1f, emptyColor.b + 0.1f, 1f);
             }
-            if (currentItem != null && hoverAsset != null)
+            // Kích hoạt viền hover cho tất cả các ô (kể cả ô trống) để tăng tính trực quan
+            if (hoverAsset != null)
             {
                 hoverAsset.SetActive(true);
             }

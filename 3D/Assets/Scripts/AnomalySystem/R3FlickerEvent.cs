@@ -95,11 +95,59 @@ namespace AnomalySystem
             if (col != null) col.isTrigger = true;
         }
 
-        private void OnTriggerEnter(Collider other)
+        private void OnEnable()
         {
-            if (!other.CompareTag("Player")) return;
+            RoomManager.OnRoomEntered += HandleRoomEntered;
+        }
 
-            Debug.Log("[R3FlickerEvent] Người chơi vào R3 — Bắt đầu sự kiện đèn nhấp nháy!");
+        private void OnDisable()
+        {
+            RoomManager.OnRoomEntered -= HandleRoomEntered;
+            if (flickerCoroutine != null)
+            {
+                StopCoroutine(flickerCoroutine);
+                flickerCoroutine = null;
+            }
+        }
+
+        private void Start()
+        {
+            // Kiểm tra xem player đã ở sẵn trong trigger khi bắt đầu scene không
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null)
+            {
+                Collider col = GetComponent<Collider>();
+                if (col != null && col.bounds.Contains(p.transform.position))
+                {
+                    StartFlickerEvent();
+                }
+            }
+        }
+
+        private void HandleRoomEntered(RoomManager.RoomState room)
+        {
+            if (room == RoomManager.RoomState.Room3)
+            {
+                GameObject p = GameObject.FindGameObjectWithTag("Player");
+                if (p != null)
+                {
+                    Collider col = GetComponent<Collider>();
+                    if (col != null && col.bounds.Contains(p.transform.position))
+                    {
+                        StartFlickerEvent();
+                    }
+                }
+            }
+            else
+            {
+                StopFlickerEvent();
+            }
+        }
+
+        public void StartFlickerEvent()
+        {
+            if (playerInR3) return;
+            Debug.Log("[R3FlickerEvent] Bắt đầu sự kiện đèn nhấp nháy!");
             playerInR3 = true;
 
             // Bắt đầu nhấp nháy
@@ -110,11 +158,10 @@ namespace AnomalySystem
             StartCoroutine(TransitionEnvironment(true));
         }
 
-        private void OnTriggerExit(Collider other)
+        public void StopFlickerEvent()
         {
-            if (!other.CompareTag("Player")) return;
-
-            Debug.Log("[R3FlickerEvent] Người chơi rời R3 — Khôi phục đèn về bình thường.");
+            if (!playerInR3) return;
+            Debug.Log("[R3FlickerEvent] Khôi phục đèn về bình thường.");
             playerInR3 = false;
 
             // Dừng nhấp nháy
@@ -129,6 +176,18 @@ namespace AnomalySystem
 
             // Khôi phục môi trường
             StartCoroutine(TransitionEnvironment(false));
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (!other.CompareTag("Player")) return;
+            StartFlickerEvent();
+        }
+
+        private void OnTriggerExit(Collider other)
+        {
+            if (!other.CompareTag("Player")) return;
+            StopFlickerEvent();
         }
 
         // ────── Coroutine nhấp nháy ──────

@@ -94,7 +94,7 @@ public class NotePickup : MonoBehaviour
 
         // Tự tìm R3FlickerEvent nếu chưa gán
         if (r3FlickerEvent == null)
-            r3FlickerEvent = FindFirstObjectByType<AnomalySystem.R3FlickerEvent>();
+            r3FlickerEvent = FindAnyObjectByType<AnomalySystem.R3FlickerEvent>();
     }
 
     private void Update()

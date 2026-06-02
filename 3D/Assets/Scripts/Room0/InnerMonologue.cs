@@ -27,6 +27,8 @@ public class InnerMonologue : MonoBehaviour
     public float typewriterSpeed = 40f;
     [Tooltip("Thời gian text mờ dần trước khi dòng tiếp xuất hiện (giây)")]
     public float fadeDuration = 0.4f;
+    [Tooltip("Cỡ chữ hiển thị (font size)")]
+    public float fontSize = 32f;
 
     [Header("Chỉ chạy 1 lần")]
     public bool triggerOnce = true;
@@ -105,7 +107,7 @@ public class InnerMonologue : MonoBehaviour
             else
             {
                 // Hiện dấu nhấp nháy nhỏ ở cuối
-                monoText.text = line.text + " <alpha=#88>▌</alpha>";
+                monoText.text = line.text + " <alpha=#88>▌";
                 yield return WaitForAnyKey();
                 monoText.text = line.text;
             }
@@ -189,7 +191,7 @@ public class InnerMonologue : MonoBehaviour
         GameObject textObj = new GameObject("MonologueText");
         textObj.transform.SetParent(panel.transform, false);
         monoText = textObj.AddComponent<TextMeshProUGUI>();
-        monoText.fontSize = 24;
+        monoText.fontSize = fontSize;
         monoText.fontStyle = FontStyles.Italic;
         monoText.color = new Color(0.92f, 0.88f, 0.82f, 1f);
         monoText.alignment = TextAlignmentOptions.BottomLeft;

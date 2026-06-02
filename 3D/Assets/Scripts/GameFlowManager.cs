@@ -47,7 +47,7 @@ public class GameFlowManager : MonoBehaviour
         else { Destroy(gameObject); return; }
 
         // Vô hiệu hóa GameFlowManager nếu sử dụng hệ thống RoomManager mới để tránh xung đột
-        if (FindObjectOfType<RoomManager>() != null)
+        if (FindAnyObjectByType<RoomManager>() != null)
         {
             Debug.Log("[GameFlowManager] Phát hiện RoomManager hoạt động. Tắt GameFlowManager!");
             enabled = false;
@@ -56,7 +56,7 @@ public class GameFlowManager : MonoBehaviour
 
     private void Start()
     {
-        if (RoomManager.Instance != null || FindObjectOfType<RoomManager>() != null)
+        if (RoomManager.Instance != null || FindAnyObjectByType<RoomManager>() != null)
         {
             Debug.Log("[GameFlowManager] Bỏ qua Start: RoomManager mới đang hoạt động.");
             enabled = false;

@@ -29,7 +29,7 @@ public class Room2AnomalyBridge : MonoBehaviour
     private void Start()
     {
         if (anomalyManager == null)
-            anomalyManager = FindObjectOfType<AnomalyManager>();
+            anomalyManager = FindAnyObjectByType<AnomalyManager>();
 
         if (anomalyManager != null)
             originalProbability = anomalyManager.anomalyProbability;

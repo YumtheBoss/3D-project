@@ -37,7 +37,7 @@ namespace GameUI
         private Coroutine colorCoroutine;
         private bool hasText = false;
 
-        private void Start()
+        private void Awake()
         {
             originalScale = transform.localScale;
             targetScale = originalScale;

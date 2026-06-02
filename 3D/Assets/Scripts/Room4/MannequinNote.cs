@@ -27,24 +27,14 @@ public class MannequinNote : MonoBehaviour
 
     // ── Nội dung tờ giấy Room 4 ──────────────────────────────────
     private const string NOTE_CONTENT =
-        "<color=#FF4444><size=115%><b>— Cảnh báo —</b></size></color>\n\n" +
-
-        "<i>Chúng tôi đã thử đến gần con gấu.\n" +
-        "Mười hai người. Không ai trở lại.\n\n" +
-        "Nó đang chờ.\n" +
-        "Nó <b>luôn</b> chờ ở đó.</i>\n\n" +
-
-        "<mark=#3A000080>" +
-        "<color=#FF9999>" +
-        "Nếu bạn muốn sống —\n" +
-        "hãy chạy qua cánh cửa cuối\n" +
-        "và <b>đừng nhìn lại.</b>\n\n" +
-        "Dù bạn nghe thấy gì.\n" +
-        "Dù bạn cảm thấy gì.\n\n" +
-        "<size=85%><b>ĐỪNG NHÌN LẠI.</b></size>" +
-        "</color>" +
-        "</mark>\n\n" +
-        "<color=#666666><size=75%>— Chữ viết run rẩy, mực nhòe —</size></color>";
+        "<color=#FF4444><size=115%><b>— Ghi chép khẩn thiết —</b></size></color>\n\n" +
+        "<i>Mười hai người... không ai có thể thoát ra ngoài.\n" +
+        "Gấu bông phát sáng là lá chắn tâm linh duy nhất giúp bạn chống chọi với lũ quỷ.\n\n" +
+        "Khi soi hào quang bảo vệ của Gấu bông vào các nguồn <b>phong ấn tà ác</b> ở căn phòng tiếp theo, phong ấn sẽ bị thanh tẩy.\n\n" +
+        "<mark=#3A000080><color=#FF9999>" +
+        "Nhưng hãy cẩn thận!\n" +
+        "Tà khí bùng phát khi thanh tẩy sẽ đánh động và thu hút quỷ dữ ở cả 2 tầng lao thẳng tới bạn!\n" +
+        "Hãy giữ vững lá chắn, giải phóng cả 3 đàn tế phong ấn thì lối thoát hiểm mới mở!</color></mark></i>";
 
     private bool isOpen = false;
     private bool hasBeenRead = false;

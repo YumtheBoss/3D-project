@@ -50,6 +50,7 @@ public class FirstPersonController : MonoBehaviour
 
     // Internal Variables
     private bool isZoomed = false;
+    public bool IsZoomed => isZoomed;
 
     #endregion
     #endregion
@@ -226,6 +227,23 @@ public class FirstPersonController : MonoBehaviour
 
     void Start()
     {
+        // Kích hoạt tự động HUD Hướng Dẫn Chơi (Tutorial HUD)
+        var tutorial = TutorialHUDManager.Instance;
+        // Tự động tạo và gán PhysicMaterial không ma sát tại runtime để ngăn người chơi bị kẹt tường/cầu thang khi đi thẳng (Friction Lockup)
+        Collider playerCollider = GetComponent<Collider>();
+        if (playerCollider == null) playerCollider = GetComponentInChildren<Collider>();
+        if (playerCollider != null)
+        {
+            PhysicsMaterial frictionlessMat = new PhysicsMaterial("FrictionlessPlayerMaterial");
+            frictionlessMat.staticFriction = 0f;
+            frictionlessMat.dynamicFriction = 0f;
+            frictionlessMat.frictionCombine = PhysicsMaterialCombine.Minimum;
+            frictionlessMat.bounciness = 0f;
+            frictionlessMat.bounceCombine = PhysicsMaterialCombine.Minimum;
+            playerCollider.material = frictionlessMat;
+            Debug.Log("[FirstPersonController] Đã tự động gán PhysicMaterial không ma sát để leo cầu thang trơn tru!");
+        }
+
         // Chỉ khoá cursor trên PC (mobile không có cursor)
         if(lockCursor)
         {
@@ -244,7 +262,14 @@ public class FirstPersonController : MonoBehaviour
 
         #region Sprint Bar
 
-        sprintBarCG = GetComponentInChildren<CanvasGroup>();
+        if (sprintBarCG == null)
+            sprintBarCG = GetComponentInChildren<CanvasGroup>();
+
+        // Tự động dựng UI Stamina Bar nếu thiếu kéo thả trong Inspector (Self-Healing UI)
+        if (useSprintBar && (sprintBarBG == null || sprintBar == null))
+        {
+            BuildDynamicSprintBar();
+        }
 
         if(useSprintBar && sprintBarBG != null && sprintBar != null)
         {
@@ -256,6 +281,8 @@ public class FirstPersonController : MonoBehaviour
 
             sprintBarWidth = screenWidth * sprintBarWidthPercent;
             sprintBarHeight = screenHeight * sprintBarHeightPercent;
+            if (sprintBarWidth <= 0f) sprintBarWidth = 400f;
+            if (sprintBarHeight <= 0f) sprintBarHeight = 12f;
 
             sprintBarBG.rectTransform.sizeDelta = new Vector3(sprintBarWidth, sprintBarHeight, 0f);
             sprintBar.rectTransform.sizeDelta = new Vector3(sprintBarWidth - 2, sprintBarHeight - 2, 0f);
@@ -440,7 +467,7 @@ public class FirstPersonController : MonoBehaviour
 
                 if (targetVelocity.magnitude < 0.1f && isGrounded)
                 {
-                    // Dừng lập tức khi không bấm phím và đang ở trên mặt đất
+                    // Dừng lập tức khi không bấm phím và đang ở trên mặt đất (Bảo toàn Y để leo cầu thang trơn tru)
                     rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
                     isSprinting = false;
                 }
@@ -487,7 +514,7 @@ public class FirstPersonController : MonoBehaviour
 
                 if (targetVelocity.magnitude < 0.1f && isGrounded)
                 {
-                    // Dừng lập tức khi không bấm phím và đang ở trên mặt đất
+                    // Dừng lập tức khi không bấm phím và đang ở trên mặt đất (Bảo toàn Y để leo cầu thang trơn tru)
                     rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
                 }
                 else
@@ -506,18 +533,73 @@ public class FirstPersonController : MonoBehaviour
         }
 
         #endregion
+
+        // --- LOGIC BÁM DỐC & TRIỆT TIÊU GIA TỐC BAY (Anti-Airborne Stair Resolver) ---
+        if (isGrounded && !Input.GetKey(jumpKey))
+        {
+            // 1. Áp dụng lực hút nhẹ xuống dưới để giữ nhân vật bám sát mặt dốc/bậc thang khi đi xuống
+            rb.AddForce(Vector3.down * 12f, ForceMode.Acceleration);
+
+            // 2. Nếu đi lên hết cầu thang và chạm đất phẳng, triệt tiêu nhanh vận tốc đứng (Y) dương để tránh bị bay lên
+            if (rb.linearVelocity.y > 0.05f)
+            {
+                Vector3 vel = rb.linearVelocity;
+                vel.y = Mathf.Lerp(vel.y, 0f, Time.fixedDeltaTime * 15f);
+                rb.linearVelocity = vel;
+            }
+        }
+        // -----------------------------------------------------------------------------
+
+        // --- BỘ LEO BẬC THANG & VƯỢT CHƯỚNG NGẠI VẬT TỰ ĐỘNG (Rigidbody Step Climber) ---
+        if (playerCanMove && isGrounded && !Input.GetKey(jumpKey))
+        {
+            float moveH = 0f;
+            float moveV = 0f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) moveV += 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) moveV -= 1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) moveH += 1f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveH -= 1f;
+
+            Vector3 moveDir = new Vector3(moveH, 0f, moveV);
+            if (moveDir.sqrMagnitude > 0.01f)
+            {
+                moveDir = transform.TransformDirection(moveDir).normalized;
+                Vector3 footPos = transform.position - new Vector3(0f, transform.localScale.y * 0.5f, 0f);
+                Vector3 lowerOrigin = footPos + Vector3.up * 0.05f;
+                Vector3 upperOrigin = footPos + Vector3.up * 0.32f; // Chiều cao bậc tối đa 32cm
+
+                float checkDistance = 0.45f;
+                // Bỏ qua các trigger ẩn để tránh va chạm nhầm
+                if (Physics.Raycast(lowerOrigin, moveDir, out RaycastHit lowerHit, checkDistance, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    // KIỂM TRA ĐỘ DỐC (Normal Check): Chỉ leo nếu va chạm là mặt đứng thẳng đứng (bậc thềm, gờ cửa...)
+                    // Tránh việc nhận nhầm mặt dốc hoặc sàn lồi lõm của mô hình 3D dốc khiến người chơi bị phóng lên trời
+                    if (lowerHit.normal.y < 0.5f)
+                    {
+                        // Phía trên bậc phải hoàn toàn trống trải
+                        if (!Physics.Raycast(upperOrigin, moveDir, checkDistance, ~0, QueryTriggerInteraction.Ignore))
+                        {
+                            // Lướt nhẹ nhàng qua bậc thềm/ngưỡng cửa mà không bị khựng đột ngột
+                            rb.position += new Vector3(0f, 5.0f * Time.fixedDeltaTime, 0f);
+                            rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Max(rb.linearVelocity.y, 1.8f), rb.linearVelocity.z);
+                        }
+                    }
+                }
+            }
+        }
+        // ---------------------------------------------------------------------------------
     }
 
-    // Sets isGrounded based on a raycast sent straigth down from the player object
+    // Sets isGrounded based on a raycast sent straight down from the bottom of the player capsule (original stable logic)
     private void CheckGround()
     {
         Vector3 origin = new Vector3(transform.position.x, transform.position.y - (transform.localScale.y * .5f), transform.position.z);
         Vector3 direction = transform.TransformDirection(Vector3.down);
-        float distance = .75f;
+        float distance = 0.75f;
 
         if (Physics.Raycast(origin, direction, out RaycastHit hit, distance))
         {
-            Debug.DrawRay(origin, direction * distance, Color.red);
+            Debug.DrawRay(origin, direction * distance, Color.green);
             isGrounded = true;
         }
         else
@@ -591,13 +673,114 @@ public class FirstPersonController : MonoBehaviour
         }
         else
         {
-            // Resets when play stops moving
-            timer = 0;
+            // Giảm timer về 0 từ từ thay vì reset lập tức để tránh giật hình đột ngột khi đổi trạng thái tiếp đất
+            timer = Mathf.Lerp(timer, 0f, Time.deltaTime * bobSpeed);
             if (joint != null)
             {
-                joint.localPosition = new Vector3(Mathf.Lerp(joint.localPosition.x, jointOriginalPos.x, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.y, jointOriginalPos.y, Time.deltaTime * bobSpeed), Mathf.Lerp(joint.localPosition.z, jointOriginalPos.z, Time.deltaTime * bobSpeed));
+                joint.localPosition = Vector3.Lerp(joint.localPosition, jointOriginalPos, Time.deltaTime * bobSpeed);
             }
         }
+    }
+
+    /// <summary>Khóa hoàn toàn mọi di chuyển, xoay camera và triệt tiêu lực vật lý của người chơi khi bị quỷ bắt.</summary>
+    public void FreezePlayer()
+    {
+        playerCanMove = false;
+        cameraCanMove = false;
+        isWalking = false;
+        isSprinting = false;
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+        }
+        Debug.Log("[FirstPersonController] Người chơi đã bị đóng băng hoàn toàn!");
+    }
+
+    private void BuildDynamicSprintBar()
+    {
+        // 1. Tạo Canvas cho Stamina Bar
+        GameObject canvasObj = new GameObject("_SprintBarCanvas_Auto");
+        canvasObj.transform.SetParent(transform, false); // Gắn làm con của Player để DontDestroyOnLoad theo player
+
+        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 9997; // Dưới Tutorial HUD
+
+        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        sprintBarCG = canvasObj.AddComponent<CanvasGroup>();
+        sprintBarCG.alpha = 0f; // Mặc định ẩn khi đầy
+
+        // 2. Tạo Ảnh Nền (Background Bar) - Màu đen mờ mỏng
+        GameObject bgObj = new GameObject("SprintBarBG");
+        bgObj.transform.SetParent(canvasObj.transform, false);
+
+        sprintBarBG = bgObj.AddComponent<Image>();
+        sprintBarBG.color = new Color(0.08f, 0.08f, 0.08f, 0.65f); // Đen mờ 65%
+
+        RectTransform bgRt = bgObj.GetComponent<RectTransform>();
+        bgRt.anchorMin = new Vector2(0.5f, 0.15f); // Đặt ở chính giữa phía dưới màn hình (dưới Tutorial HUD)
+        bgRt.anchorMax = new Vector2(0.5f, 0.15f);
+        bgRt.pivot = new Vector2(0.5f, 0.5f);
+        
+        float screenWidth = Screen.width;
+        float screenHeight = Screen.height;
+        sprintBarWidth = screenWidth * sprintBarWidthPercent;
+        sprintBarHeight = screenHeight * sprintBarHeightPercent;
+        
+        // Cố định kích thước lý tưởng nếu chạy tại Editor chưa tính toán được Resolution
+        if (sprintBarWidth <= 0f) sprintBarWidth = 400f;
+        if (sprintBarHeight <= 0f) sprintBarHeight = 12f;
+
+        bgRt.sizeDelta = new Vector2(sprintBarWidth, sprintBarHeight);
+
+        // Tạo Viền Neon Mỏng cho Stamina Bar
+        GameObject borderObj = new GameObject("Border");
+        borderObj.transform.SetParent(bgObj.transform, false);
+        Image borderImg = borderObj.AddComponent<Image>();
+        borderImg.color = new Color(0.4f, 0.4f, 0.4f, 0.35f); // Viền xám mờ nhẹ
+        RectTransform borderRt = borderObj.GetComponent<RectTransform>();
+        borderRt.anchorMin = Vector2.zero;
+        borderRt.anchorMax = Vector2.one;
+        borderRt.offsetMin = new Vector2(-1, -1);
+        borderRt.offsetMax = new Vector2(1, 1);
+        borderObj.transform.SetAsFirstSibling();
+
+        // 3. Tạo Ảnh Điền Thể Lực (Fill Bar) - Màu vàng kim neon rực rỡ
+        GameObject fillObj = new GameObject("SprintBarFill");
+        fillObj.transform.SetParent(bgObj.transform, false);
+
+        sprintBar = fillObj.AddComponent<Image>();
+        sprintBar.color = new Color(1f, 0.75f, 0.3f, 0.85f); // Vàng kim neon ấm áp
+
+        RectTransform fillRt = fillObj.GetComponent<RectTransform>();
+        fillRt.anchorMin = new Vector2(0f, 0f); // Căn lề trái để co giãn từ trái sang phải
+        fillRt.anchorMax = new Vector2(1f, 1f);
+        fillRt.pivot = new Vector2(0f, 0.5f); // Pivot bên trái
+        fillRt.offsetMin = new Vector2(2, 2); // Padding bên trong 2px
+        fillRt.offsetMax = new Vector2(-2, -2);
+
+        Debug.Log("[FirstPersonController Self-Heal] Đã tự động dựng thành công UI Stamina Bar tuyệt đẹp tại runtime!");
+    }
+
+    /// <summary>Giải phóng trạng thái đóng băng di chuyển của người chơi khi chơi lại.</summary>
+    public void UnfreezePlayer()
+    {
+        playerCanMove = true;
+        cameraCanMove = true;
+
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+        Debug.Log("[FirstPersonController] Đã giải phóng di chuyển cho người chơi.");
     }
 }
 

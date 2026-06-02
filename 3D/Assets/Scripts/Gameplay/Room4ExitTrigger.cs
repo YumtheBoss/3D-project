@@ -20,6 +20,16 @@ public class Room4ExitTrigger : MonoBehaviour
         if (used) return;
         if (!other.CompareTag("Player")) return;
 
+        // Khóa an toàn check
+        if (RoomManager.Instance != null)
+        {
+            if (!RoomManager.Instance.CheckAndPlaySafetyLockMonologue())
+            {
+                // Bị khóa -> Không kết thúc chase, không biến mất trigger
+                return;
+            }
+        }
+
         used = true;
         chaseSequence?.OnPlayerReachedExit();
         gameObject.SetActive(false);

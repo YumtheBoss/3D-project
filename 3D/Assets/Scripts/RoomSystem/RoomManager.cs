@@ -37,9 +37,12 @@ public class RoomManager : MonoBehaviour
 
     public RoomState CurrentRoom { get; private set; } = RoomState.Room0;
     public float TotalPlayTime { get; private set; }
+    [HideInInspector]
+    public bool isTimerPaused = false;
 
     private bool isLoadingScene = false;
     private RoomState pendingRoom = RoomState.Room0;
+    private string pendingCustomSpawnPointName = "";
     private bool hasPendingTeleport = false;
 
     // ═══════════════════════════════════════════════════════════
@@ -60,6 +63,19 @@ public class RoomManager : MonoBehaviour
         }
 
         DemonController.ResetAll();
+
+        // Tự động kiểm tra và tạo EndingController nếu thiếu trong Scene (Self-Healing)
+        EnsureEndingControllerExists();
+    }
+
+    private void EnsureEndingControllerExists()
+    {
+        if (EndingController.Instance == null && FindAnyObjectByType<EndingController>() == null)
+        {
+            GameObject endingCtrlObj = new GameObject("EndingController_Auto");
+            endingCtrlObj.AddComponent<EndingController>();
+            Debug.Log("[RoomManager Self-Heal] Phát hiện thiếu EndingController trong Scene! Đã tự động tạo 'EndingController_Auto'.");
+        }
     }
 
     private void OnEnable()
@@ -70,6 +86,27 @@ public class RoomManager : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void Start()
+    {
+        // Khi bắt đầu game, đọc phòng đã lưu
+        int savedRoom = PlayerPrefs.GetInt("CurrentRoom", 0);
+
+        #if UNITY_EDITOR
+        // Nếu chạy trực tiếp trong Unity Editor ở SampleScene, tự động reset về Room 0 để tránh lưu trữ rác từ các lần test trước
+        if (SceneManager.GetActiveScene().name == sampleSceneName)
+        {
+            savedRoom = 0;
+            PlayerPrefs.SetInt("CurrentRoom", 0);
+            PlayerPrefs.Save();
+            Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room0 để tránh lỗi desync khi test trực tiếp trong Editor!");
+        }
+        #endif
+
+        CurrentRoom = (RoomState)savedRoom;
+        Debug.Log($"[RoomManager] Start: Khởi tạo phòng. CurrentRoom={CurrentRoom}");
+        OnRoomEntered?.Invoke(CurrentRoom);
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -92,8 +129,38 @@ public class RoomManager : MonoBehaviour
             room012SpawnPoint = null;
             room3SpawnPoint = null;
             room4SpawnPoint = null;
-            TeleportToRoomSpawn(pendingRoom);
+
+            if (!string.IsNullOrEmpty(pendingCustomSpawnPointName))
+            {
+                TeleportToCustomSpawn(pendingCustomSpawnPointName);
+                pendingCustomSpawnPointName = ""; // reset
+            }
+            else
+            {
+                TeleportToRoomSpawn(pendingRoom);
+            }
+
             OnRoomEntered?.Invoke(pendingRoom);
+        }
+        else
+        {
+            // Trường hợp tải scene trực tiếp (từ MainMenu Continue hoặc Editor)
+            int savedRoom = PlayerPrefs.GetInt("CurrentRoom", 0);
+
+            #if UNITY_EDITOR
+            // Nếu chạy trực tiếp trong Unity Editor ở SampleScene, tự động reset về Room 0
+            if (scene.name == sampleSceneName)
+            {
+                savedRoom = 0;
+                PlayerPrefs.SetInt("CurrentRoom", 0);
+                PlayerPrefs.Save();
+                Debug.Log("[RoomManager] [UNITY_EDITOR] Đã tự động reset về Room0 ở OnSceneLoaded!");
+            }
+            #endif
+
+            CurrentRoom = (RoomState)savedRoom;
+            Debug.Log($"[RoomManager] OnSceneLoaded: Tải scene trực tiếp. CurrentRoom={CurrentRoom}");
+            OnRoomEntered?.Invoke(CurrentRoom);
         }
     }
 
@@ -128,7 +195,10 @@ public class RoomManager : MonoBehaviour
 
     private void Update()
     {
-        TotalPlayTime += Time.deltaTime;
+        if (!isTimerPaused && Time.timeScale > 0f)
+        {
+            TotalPlayTime += Time.deltaTime;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -163,6 +233,7 @@ public class RoomManager : MonoBehaviour
             {
                 isLoadingScene = true;
                 pendingRoom = room;
+                pendingCustomSpawnPointName = ""; // Reset custom spawn
                 hasPendingTeleport = true;
                 Debug.Log($"[RoomManager] Cross-scene transition: '{currentScene}' → '{targetScene}' for {room}");
                 SceneManager.LoadScene(targetScene);
@@ -202,9 +273,7 @@ public class RoomManager : MonoBehaviour
     /// </summary>
     private void TeleportToRoomSpawn(RoomState room)
     {
-        if (room == RoomState.Room0) return; // Room 0 không cần teleport
-
-        if (room == RoomState.Room1 || room == RoomState.Room2)
+        if (room == RoomState.Room0 || room == RoomState.Room1 || room == RoomState.Room2)
         {
             if (room012SpawnPoint == null)
             {
@@ -256,6 +325,202 @@ public class RoomManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Tiến vào room mới và dịch chuyển người chơi tới một spawn point tùy chỉnh cụ thể.
+    /// </summary>
+    public void EnterRoomWithCustomSpawn(RoomState room, string spawnPointName)
+    {
+        CurrentRoom = room;
+        PlayerPrefs.SetInt("CurrentRoom", (int)room);
+        PlayerPrefs.Save();
+        Debug.Log($"[RoomManager] Entered {room} with custom spawn point: {spawnPointName}");
+
+        // Xác định scene mục tiêu cho room này
+        string targetScene = GetSceneForRoom(room);
+        string currentScene = SceneManager.GetActiveScene().name;
+
+        // Nếu scene hiện tại khác scene mục tiêu → chuyển scene
+        if (!string.Equals(currentScene, targetScene, System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (!isLoadingScene)
+            {
+                isLoadingScene = true;
+                pendingRoom = room;
+                pendingCustomSpawnPointName = spawnPointName;
+                hasPendingTeleport = true;
+                Debug.Log($"[RoomManager] Cross-scene transition: '{currentScene}' → '{targetScene}' for {room} with custom spawn '{spawnPointName}'");
+                SceneManager.LoadScene(targetScene);
+            }
+            return;
+        }
+
+        // Cùng scene → teleport trực tiếp tới custom spawn point
+        TeleportToCustomSpawn(spawnPointName);
+        OnRoomEntered?.Invoke(room);
+    }
+
+    /// <summary>
+    /// Dịch chuyển người chơi kết hợp hiệu ứng Fade màn hình tối đen mượt mà.
+    /// </summary>
+    public void EnterRoomWithFadeTransition(RoomState room, string spawnPointName, float fadeTime = 0.6f)
+    {
+        StartCoroutine(EnterRoomWithFadeRoutine(room, spawnPointName, fadeTime));
+    }
+
+    private IEnumerator EnterRoomWithFadeRoutine(RoomState room, string spawnPointName, float fadeTime)
+    {
+        // 1. Tạo Canvas và Image màu đen động đè lên toàn màn hình
+        GameObject fadeGO = new GameObject("Dynamic_FadeOverlay");
+        DontDestroyOnLoad(fadeGO);
+
+        Canvas canvas = fadeGO.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 9999; 
+
+        UnityEngine.UI.Image fadeImage = fadeGO.AddComponent<UnityEngine.UI.Image>();
+        fadeImage.color = new Color(0f, 0f, 0f, 0f);
+
+        RectTransform rect = fadeImage.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        // 2. Fade to Black (Tối màn hình dần)
+        float elapsed = 0f;
+        while (elapsed < fadeTime)
+        {
+            elapsed += Time.deltaTime;
+            fadeImage.color = new Color(0f, 0f, 0f, Mathf.Clamp01(elapsed / fadeTime));
+            yield return null;
+        }
+        fadeImage.color = new Color(0f, 0f, 0f, 1f);
+
+        // 3. Thực hiện thay đổi Room và dịch chuyển
+        CurrentRoom = room;
+        PlayerPrefs.SetInt("CurrentRoom", (int)room);
+        PlayerPrefs.Save();
+
+        if (!string.IsNullOrEmpty(spawnPointName))
+        {
+            TeleportToCustomSpawn(spawnPointName);
+        }
+        else
+        {
+            TeleportToRoomSpawn(room);
+        }
+
+        // Chờ 0.2 giây để hệ thống Camera/Physics định vị tại vị trí mới dưới màn đen
+        yield return new WaitForSeconds(0.2f);
+
+        // Phát sự kiện để kích hoạt các logic môi trường (như Demon, v.v.)
+        OnRoomEntered?.Invoke(room);
+
+        // 4. Fade in (Sáng màn hình dần)
+        elapsed = 0f;
+        while (elapsed < fadeTime)
+        {
+            elapsed += Time.deltaTime;
+            fadeImage.color = new Color(0f, 0f, 0f, Mathf.Clamp01(1f - (elapsed / fadeTime)));
+            yield return null;
+        }
+
+        // 5. Giải phóng tài nguyên
+        Destroy(fadeGO);
+    }
+
+    private void TeleportToCustomSpawn(string spawnPointName)
+    {
+        GameObject sp = FindGameObjectEvenIfInactive(spawnPointName);
+        if (sp != null)
+        {
+            Debug.Log($"[RoomManager] Teleporting player to custom spawn '{spawnPointName}' at position: {sp.transform.position}");
+            TeleportPlayer(sp.transform);
+
+            // Kiểm tra kích hoạt chủ động chuỗi đuổi bắt của Room 4
+            string cleanName = spawnPointName.Trim();
+            if (cleanName.StartsWith("Room4Spawn  Demon") || cleanName.StartsWith("Room4Spawn Demon"))
+            {
+                StartCoroutine(TriggerChaseDelayed());
+            }
+        }
+        else
+        {
+            Debug.LogError($"[RoomManager] Cannot teleport: custom spawn point '{spawnPointName}' not found!");
+        }
+    }
+
+    private IEnumerator TriggerChaseDelayed()
+    {
+        // Chờ 0.5 giây để nhân vật hoàn thành việc định vị vị trí spawn vật lý
+        yield return new WaitForSeconds(0.5f);
+        Room4ChaseSequence chaseSeq = FindAnyObjectByType<Room4ChaseSequence>();
+        if (chaseSeq != null && player != null)
+        {
+            chaseSeq.ForceStartChase(player);
+            Debug.Log("[RoomManager] Force started Room 4 Chase Sequence via code successfully!");
+        }
+    }
+
+    public void ResetProgress()
+    {
+        CurrentRoom = RoomState.Room0;
+        TotalPlayTime = 0f;
+        isLoadingScene = false;
+        hasPendingTeleport = false;
+        pendingCustomSpawnPointName = "";
+        pendingRoom = RoomState.Room0;
+        Debug.Log("[RoomManager] Đã reset toàn bộ tiến trình game trong bộ nhớ.");
+    }
+
+    public void ResetToRoom0()
+    {
+        ResetProgress();
+        
+        // Giải phóng trạng thái đóng băng di chuyển của người chơi khi chơi lại (Self-Healing)
+        FirstPersonController.Instance?.UnfreezePlayer();
+        
+        // Reset tiến trình đã lưu trong PlayerPrefs
+        PlayerPrefs.SetInt("CurrentRoom", 0);
+        PlayerPrefs.Save();
+
+        string targetScene = sampleSceneName;
+        string currentScene = SceneManager.GetActiveScene().name;
+
+        if (!string.Equals(currentScene, targetScene, System.StringComparison.OrdinalIgnoreCase))
+        {
+            // Chuyển scene về SampleScene (hasPendingTeleport = true để OnSceneLoaded xử lý teleport)
+            isLoadingScene = true;
+            pendingRoom = RoomState.Room0;
+            pendingCustomSpawnPointName = "";
+            hasPendingTeleport = true;
+            Debug.Log($"[RoomManager ResetToRoom0] Đang chuyển scene từ '{currentScene}' về '{targetScene}'...");
+            SceneManager.LoadScene(targetScene);
+        }
+        else
+        {
+            // Cùng scene -> Teleport trực tiếp về điểm spawn Room012Spawn
+            if (room012SpawnPoint == null)
+            {
+                GameObject sp = FindGameObjectEvenIfInactive("Room012Spawn");
+                if (sp == null) sp = FindGameObjectEvenIfInactive("SpawnPoint");
+                if (sp != null) room012SpawnPoint = sp.transform;
+            }
+
+            if (room012SpawnPoint != null)
+            {
+                Debug.Log($"[RoomManager ResetToRoom0] Cùng scene, dịch chuyển player về Room012Spawn: {room012SpawnPoint.position}");
+                TeleportPlayer(room012SpawnPoint);
+            }
+            else
+            {
+                Debug.LogWarning("[RoomManager ResetToRoom0] Không tìm thấy spawn point Room012Spawn!");
+            }
+
+            OnRoomEntered?.Invoke(RoomState.Room0);
+        }
+    }
+
+    /// <summary>
     /// Cập nhật CurrentRoom và fire OnRoomEntered mà KHÔNG teleport player.
     /// Dùng bởi scene-local initializer (HospitalSceneManager, Room5Initializer)
     /// khi scene đã load và player đã ở đúng vị trí.
@@ -269,17 +534,46 @@ public class RoomManager : MonoBehaviour
 
     public void TriggerGoodEnding()
     {
-        EndingController.Instance?.ShowGoodEnding(TotalPlayTime);
+        EnsureEndingControllerExists();
+
+        if (EndingController.Instance != null)
+        {
+            EndingController.Instance.ShowGoodEnding(TotalPlayTime);
+        }
+        else
+        {
+            Debug.LogWarning("[RoomManager] Good Ending triggered, but EndingController is null!");
+        }
     }
 
     public void TriggerBadEnding(string reason)
     {
-        EndingController.Instance?.ShowBadEnding(reason);
+        EnsureEndingControllerExists();
+
+        if (EndingController.Instance != null)
+        {
+            EndingController.Instance.ShowBadEnding(reason);
+        }
+        else
+        {
+            Debug.LogWarning($"[RoomManager] EndingController.Instance is null! Reloading scene as fallback. Reason: {reason}");
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
     public void TriggerBadEndingTrapped()
     {
-        EndingController.Instance?.ShowBadEndingTrapped();
+        EnsureEndingControllerExists();
+
+        if (EndingController.Instance != null)
+        {
+            EndingController.Instance.ShowBadEndingTrapped();
+        }
+        else
+        {
+            Debug.LogWarning("[RoomManager] Bad Ending Trapped triggered, but EndingController is null! Reloading scene.");
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
     /// <summary>
@@ -345,7 +639,7 @@ public class RoomManager : MonoBehaviour
         if (playerObj == null)
         {
             // Dự phòng: Tìm bất kỳ đối tượng nào có gắn CharacterController
-            var fpc = FindObjectOfType<CharacterController>();
+            var fpc = FindAnyObjectByType<CharacterController>();
             if (fpc != null)
             {
                 playerObj = fpc.gameObject;
@@ -491,10 +785,16 @@ public class RoomManager : MonoBehaviour
         }
 
         // 3. Dự phòng cuối cùng: Quét tất cả Transform trong bộ nhớ
+        // Để tăng tính chống chịu lỗi (mismatch khoảng trắng giữa 1 hay 2 space ở giữa),
+        // ta chuẩn hóa khoảng trắng bằng cách gom các space liên tiếp thành 1 space duy nhất.
+        string normalizedTarget = System.Text.RegularExpressions.Regex.Replace(targetName, @"\s+", " ");
         Transform[] allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
         foreach (Transform t in allTransforms)
         {
-            if (t.gameObject.name.Trim() == targetName)
+            string cleanName = t.gameObject.name.Trim();
+            string normalizedClean = System.Text.RegularExpressions.Regex.Replace(cleanName, @"\s+", " ");
+
+            if (cleanName == targetName || normalizedClean == normalizedTarget)
             {
                 // Loại bỏ các đối tượng là asset trong project (chỉ lấy đối tượng trong Hierarchy thực tế)
                 if (t.gameObject.hideFlags == HideFlags.None && !string.IsNullOrEmpty(t.gameObject.scene.name))
@@ -515,5 +815,74 @@ public class RoomManager : MonoBehaviour
             if (found != null) return found;
         }
         return null;
+    }
+
+    public bool CheckAndPlaySafetyLockMonologue()
+    {
+        string hintText = "";
+        bool canExit = true;
+
+        if (CurrentRoom == RoomState.Room0)
+        {
+            if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("Book"))
+            {
+                hintText = "Quyển sổ nhật ký trên bàn... hình như nó chứa đựng những ghi chép quan trọng của ai đó. Mình nên đọc nó trước khi đi tiếp.";
+                canExit = false;
+            }
+        }
+        else if (CurrentRoom == RoomState.Room1)
+        {
+            if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("TornPage_Room1"))
+            {
+                hintText = "Mình chưa tìm kiếm kỹ căn phòng này... Có một mảnh giấy rách đang phát sáng trên kệ, mình nên nhặt nó để xem có manh mối gì không.";
+                canExit = false;
+            }
+        }
+        else if (CurrentRoom == RoomState.Room3)
+        {
+            if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("BibleNote_Room3"))
+            {
+                hintText = "Hành lang phía trước tối tăm và u ám một cách đáng sợ... Mình phải tìm kiếm thứ gì đó phát sáng ở đằng kia trước khi bước qua cánh cửa này.";
+                canExit = false;
+            }
+        }
+        else if (CurrentRoom == RoomState.Room4)
+        {
+            if (AnomalySystem.InventoryManager.Instance == null || !AnomalySystem.InventoryManager.Instance.HasItem("TeddyBear"))
+            {
+                hintText = "Năng lượng tà ác ở hành lang này quá mạnh... Mình cần một thứ bảo hộ tâm linh. Con gấu bông phát sáng trong chiếc cũi kia, mình phải nhặt nó trước.";
+                canExit = false;
+            }
+        }
+
+        if (!canExit && !string.IsNullOrEmpty(hintText))
+        {
+            PlaySafetyMonologue(hintText);
+            return false;
+        }
+
+        return true;
+    }
+
+    public void PlaySafetyMonologue(string text)
+    {
+        // Kiểm tra xem đã có monologue nào đang chạy chưa để tránh trùng lặp
+        InnerMonologue existing = FindAnyObjectByType<InnerMonologue>();
+        if (existing != null && existing.IsRunning)
+        {
+            return;
+        }
+
+        GameObject hintObj = new GameObject("SafetyLockHint_Auto");
+        InnerMonologue mono = hintObj.AddComponent<InnerMonologue>();
+        mono.triggerOnce = false;
+        mono.lines = new System.Collections.Generic.List<InnerMonologue.MonologueLine>
+        {
+            new InnerMonologue.MonologueLine { text = text, autoAdvanceDelay = 5f }
+        };
+        mono.PlayManually();
+        
+        // Hủy object sau khi chạy xong để tránh rác Hierarchy
+        Destroy(hintObj, 10f);
     }
 }

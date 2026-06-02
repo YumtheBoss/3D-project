@@ -37,14 +37,39 @@ namespace GameUI
         // Tham chiếu đến FirstPersonController để đổi tốc độ chuột ngay lập tức
         private FirstPersonController fpc;
 
+        private void Awake()
+        {
+            // Tự động kiểm tra và tạo EventSystem nếu thiếu trong Scene (Self-Healing)
+            EnsureEventSystemExists();
+
+            // Tự động tìm kiếm và liên kết các thành phần bị thiếu (Self-Healing System)
+            SelfHealReferences();
+        }
+
+        private void EnsureEventSystemExists()
+        {
+            if (EventSystem.current == null && Object.FindAnyObjectByType<EventSystem>() == null)
+            {
+                GameObject eventSystemObj = new GameObject("EventSystem_Auto");
+                eventSystemObj.AddComponent<EventSystem>();
+                
+#if ENABLE_INPUT_SYSTEM
+                eventSystemObj.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+#else
+                eventSystemObj.AddComponent<StandaloneInputModule>();
+#endif
+                Debug.Log("[PauseMenu Self-Heal] Phát hiện thiếu EventSystem trong Scene! Đã tự động tạo 'EventSystem_Auto'.");
+            }
+        }
+
         private void Start()
         {
             // Tự động tìm nhân vật
             GameObject player = GameObject.FindGameObjectWithTag("Player");
             if (player != null) fpc = player.GetComponent<FirstPersonController>();
 
-            // Ẩn Menu khi mới vào game
-            pauseMenuPanel.SetActive(false);
+            // Ẩn Menu khi mới vào game (Bổ sung null-check an toàn chống UnassignedReferenceException)
+            if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
             if (settingsPanel != null) settingsPanel.SetActive(false);
             if (inventoryPanel != null) inventoryPanel.SetActive(false);
 
@@ -172,6 +197,12 @@ namespace GameUI
             if (interactionCanvas != null) interactionCanvas.SetActive(false);
 
             if (inventoryPanel != null) inventoryPanel.SetActive(true);
+
+            // Dừng bộ đếm thời gian chơi trong RoomManager
+            if (RoomManager.Instance != null)
+            {
+                RoomManager.Instance.isTimerPaused = true;
+            }
         }
 
         public void CloseInventory()
@@ -179,7 +210,11 @@ namespace GameUI
             isInventoryOpen = false;
             Time.timeScale = 1f;
             
-            if (fpc != null) fpc.cameraCanMove = true;
+            if (fpc != null) 
+            {
+                fpc.cameraCanMove = true;
+                fpc.enabled = true; // Tự động khôi phục hoạt động của nhân vật (Self-Healing)
+            }
             
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -188,6 +223,51 @@ namespace GameUI
 
             if (hudPanel != null) hudPanel.SetActive(true);
             if (interactionCanvas != null) interactionCanvas.SetActive(true);
+
+            // Tiếp tục bộ đếm thời gian chơi trong RoomManager
+            if (RoomManager.Instance != null)
+            {
+                RoomManager.Instance.isTimerPaused = false;
+            }
+        }
+
+        private void EnsurePausePanelChildrenActive()
+        {
+            if (pauseMenuPanel != null)
+            {
+                pauseMenuPanel.SetActive(true);
+                
+                // Đảm bảo CanvasGroup luôn hiện và nhận tương tác (Self-Healing)
+                CanvasGroup cg = pauseMenuPanel.GetComponent<CanvasGroup>();
+                if (cg != null)
+                {
+                    cg.alpha = 1f;
+                    cg.interactable = true;
+                    cg.blocksRaycasts = true;
+                }
+
+                foreach (Transform child in pauseMenuPanel.transform)
+                {
+                    child.gameObject.SetActive(true);
+
+                    CanvasGroup childCg = child.GetComponent<CanvasGroup>();
+                    if (childCg != null)
+                    {
+                        childCg.alpha = 1f;
+                        childCg.interactable = true;
+                        childCg.blocksRaycasts = true;
+                    }
+
+                    foreach (Transform grandChild in child)
+                    {
+                        grandChild.gameObject.SetActive(true);
+                        foreach (Transform greatGrandChild in grandChild)
+                        {
+                            greatGrandChild.gameObject.SetActive(true);
+                        }
+                    }
+                }
+            }
         }
 
         public void PauseGame()
@@ -204,8 +284,14 @@ namespace GameUI
             if (hudPanel != null) hudPanel.SetActive(false);
             if (interactionCanvas != null) interactionCanvas.SetActive(false);
 
-            pauseMenuPanel.SetActive(true);
+            EnsurePausePanelChildrenActive();
             if (settingsPanel != null) settingsPanel.SetActive(false);
+
+            // Dừng bộ đếm thời gian chơi trong RoomManager
+            if (RoomManager.Instance != null)
+            {
+                RoomManager.Instance.isTimerPaused = true;
+            }
         }
 
         public void ResumeGame()
@@ -214,8 +300,12 @@ namespace GameUI
             isPaused = false;
             Time.timeScale = 1f; // Tiếp tục thời gian
             
-            // Bật lại xoay camera
-            if (fpc != null) fpc.cameraCanMove = true;
+            // Bật lại xoay camera và khôi phục hoạt động của nhân vật (Self-Healing)
+            if (fpc != null) 
+            {
+                fpc.cameraCanMove = true;
+                fpc.enabled = true; 
+            }
             
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -226,6 +316,12 @@ namespace GameUI
             // Hiện lại HUD và chữ tương tác
             if (hudPanel != null) hudPanel.SetActive(true);
             if (interactionCanvas != null) interactionCanvas.SetActive(true);
+
+            // Tiếp tục bộ đếm thời gian chơi trong RoomManager
+            if (RoomManager.Instance != null)
+            {
+                RoomManager.Instance.isTimerPaused = false;
+            }
         }
 
         public void ShowSettings()
@@ -239,7 +335,7 @@ namespace GameUI
         {
             Debug.Log("[PauseMenu] Nút BACK đã được BẤM!");
             if (settingsPanel != null) settingsPanel.SetActive(false);
-            pauseMenuPanel.SetActive(true);
+            EnsurePausePanelChildrenActive();
         }
 
         public void GoToMainMenu()
@@ -288,6 +384,75 @@ namespace GameUI
         {
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlayButtonClick();
+        }
+
+        // ========== TỰ ĐỘNG LIÊN KẾT (SELF-HEALING) ==========
+
+        private void SelfHealReferences()
+        {
+            // 1. Tìm Canvas của Pause Menu hoặc tự quét trong scene
+            Canvas parentCanvas = GetComponentInParent<Canvas>();
+            if (parentCanvas == null)
+            {
+                parentCanvas = Object.FindAnyObjectByType<Canvas>();
+            }
+
+            if (parentCanvas != null)
+            {
+                // Tìm pauseMenuPanel nếu trống
+                if (pauseMenuPanel == null)
+                {
+                    pauseMenuPanel = FindChildRecursive(parentCanvas.gameObject, "PauseMenu Panel") 
+                                     ?? FindChildRecursive(parentCanvas.gameObject, "PauseMenuPanel") 
+                                     ?? FindChildRecursive(parentCanvas.gameObject, "Pause Panel")
+                                     ?? FindChildRecursive(parentCanvas.gameObject, "PausePanel");
+                    if (pauseMenuPanel != null) Debug.Log($"[PauseMenu Self-Heal] Đã tự tìm thấy pauseMenuPanel: '{pauseMenuPanel.name}'!");
+                }
+
+                // Tìm settingsPanel nếu trống
+                if (settingsPanel == null)
+                {
+                    settingsPanel = FindChildRecursive(parentCanvas.gameObject, "Setting Panel") 
+                                    ?? FindChildRecursive(parentCanvas.gameObject, "SettingPanel") 
+                                    ?? FindChildRecursive(parentCanvas.gameObject, "SettingsPanel")
+                                    ?? FindChildRecursive(parentCanvas.gameObject, "Settings Panel");
+                    if (settingsPanel != null) Debug.Log($"[PauseMenu Self-Heal] Đã tự tìm thấy settingsPanel: '{settingsPanel.name}'!");
+                }
+            }
+
+            // 2. Tìm HUD panel nếu trống
+            if (hudPanel == null)
+            {
+                hudPanel = GameObject.Find("HUDPanel") ?? GameObject.Find("HUD Panel") ?? GameObject.Find("HUD");
+                if (hudPanel != null) Debug.Log($"[PauseMenu Self-Heal] Đã tự tìm thấy hudPanel: '{hudPanel.name}'!");
+            }
+
+            // 3. Tìm interactionCanvas nếu trống
+            if (interactionCanvas == null)
+            {
+                interactionCanvas = GameObject.Find("InteractionCanvas") ?? GameObject.Find("Interaction Canvas") ?? GameObject.Find("InteractionCanvas_Auto");
+                if (interactionCanvas != null) Debug.Log($"[PauseMenu Self-Heal] Đã tự tìm thấy interactionCanvas: '{interactionCanvas.name}'!");
+            }
+
+            // 4. Tìm inventoryPanel nếu trống
+            if (inventoryPanel == null)
+            {
+                inventoryPanel = GameObject.Find("InventoryPanel") ?? GameObject.Find("Inventory Panel") ?? GameObject.Find("Inventory") ?? GameObject.Find("InventoryPanel_Auto");
+                if (inventoryPanel != null) Debug.Log($"[PauseMenu Self-Heal] Đã tự tìm thấy inventoryPanel: '{inventoryPanel.name}'!");
+            }
+        }
+
+        private GameObject FindChildRecursive(GameObject parent, string name)
+        {
+            if (parent.name.Equals(name, System.StringComparison.OrdinalIgnoreCase))
+                return parent;
+            
+            foreach (Transform child in parent.transform)
+            {
+                GameObject found = FindChildRecursive(child.gameObject, name);
+                if (found != null) return found;
+            }
+            return null;
         }
     }
 }

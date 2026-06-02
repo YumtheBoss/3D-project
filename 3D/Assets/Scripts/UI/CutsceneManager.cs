@@ -78,15 +78,17 @@ namespace GameUI
 
             if (skipButton != null)
             {
+                StyleSkipButton(skipButton);
+
                 skipButton.onClick.RemoveListener(SkipCutscene);
                 skipButton.onClick.AddListener(SkipCutscene);
-                Debug.Log("[CutsceneManager] Đã liên kết nút Skip thành công!");
+                Debug.Log("[CutsceneManager] Đã liên kết và trang trí nút Skip đỏ thành công!");
             }
         }
 
         private void CreateAutoLoadingPanel()
         {
-            Canvas canvas = Object.FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+            Canvas canvas = Object.FindAnyObjectByType<Canvas>(FindObjectsInactive.Include);
             if (canvas == null) return;
 
             loadingPanel = new GameObject("AutoCreated_LoadingPanel");
@@ -127,8 +129,9 @@ namespace GameUI
             var spinnerImg = spinnerObj.AddComponent<UnityEngine.UI.Image>();
             spinnerImg.color = new Color(0.9f, 0.1f, 0.1f, 0.8f); // Đỏ horror rực rỡ quyến rũ
             
-            Sprite knobSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd");
-            if (knobSprite != null) spinnerImg.sprite = knobSprite;
+            // Trong Unity 6, tài nguyên UI/Skin/Knob.psd đã bị loại bỏ.
+            // Ta dùng vòng tròn xoay phẳng mặc định của Image.
+            Sprite knobSprite = null;
 
             // Tạo hiệu ứng quay spinner
             StartCoroutine(RotateSpinnerRoutine(spinnerObj.transform));
@@ -170,17 +173,13 @@ namespace GameUI
             rect.anchoredPosition = new Vector2(-40f, 40f); // Lùi vào trong góc 40px
             rect.sizeDelta = new Vector2(180f, 50f);
 
-            // Nền đen kính mờ (semi-transparent dark)
+            // Nền đỏ sẫm kính mờ chất lượng cao để nổi bật trên nền video kinh dị tối
             var buttonImage = skipBtnObj.AddComponent<UnityEngine.UI.Image>();
-            buttonImage.color = new Color(0.08f, 0.08f, 0.08f, 0.8f);
+            buttonImage.color = new Color(0.35f, 0.05f, 0.05f, 0.85f); // Màu đỏ kinh dị rực rỡ, cực kỳ dễ nhìn
             
-            // Dùng InputFieldBackground để có bo góc mượt mà
-            Sprite btnSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/InputFieldBackground.psd");
-            if (btnSprite != null)
-            {
-                buttonImage.sprite = btnSprite;
-                buttonImage.type = UnityEngine.UI.Image.Type.Sliced;
-            }
+            // Trong Unity 6, tài nguyên UI/Skin/InputFieldBackground.psd đã bị loại bỏ.
+            // Ta dùng thiết kế kính phẳng tối giản không viền (Flat Glassmorphism) cực kỳ hiện đại.
+            Sprite btnSprite = null;
 
             // Component Button
             skipButton = skipBtnObj.AddComponent<UnityEngine.UI.Button>();
@@ -188,7 +187,7 @@ namespace GameUI
             // Cài đặt Transition màu nút bấm
             UnityEngine.UI.ColorBlock colors = skipButton.colors;
             colors.normalColor = new Color(1f, 1f, 1f, 1f);
-            colors.highlightedColor = new Color(1.1f, 1.1f, 1.1f, 1f);
+            colors.highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f);
             colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
             colors.selectedColor = new Color(1f, 1f, 1f, 1f);
             skipButton.colors = colors;
@@ -206,19 +205,53 @@ namespace GameUI
             txt.text = "SKIP BỎ QUA >>";
             txt.fontSize = 18f;
             txt.alignment = TextAlignmentOptions.Center;
-            txt.color = new Color(0.85f, 0.85f, 0.85f, 1f);
+            txt.color = Color.white; // Màu chữ trắng tinh để tăng độ tương phản hiển thị
+            
+            // QUAN TRỌNG: Gán Font mặc định để hiển thị chữ lúc runtime (tránh bị trống font do add component động)
+            txt.font = TMP_Settings.defaultFontAsset;
 
             // Gắn hiệu ứng tương tác UIHoverEffect (Premium Micro-animations)
             var hoverEffect = skipBtnObj.AddComponent<UIHoverEffect>();
             hoverEffect.targetText = txt;
-            hoverEffect.hoverColor = new Color(0.9f, 0.1f, 0.1f, 1f); // Màu đỏ kinh dị khi rê chuột vào
+            hoverEffect.hoverColor = new Color(1f, 0.2f, 0.2f, 1f); // Màu đỏ tươi rực sáng khi rê chuột vào
             hoverEffect.hoverScale = new Vector3(1.05f, 1.05f, 1.05f); // Phóng to nhẹ
+
+            // Đảm bảo nút skip luôn nằm ở lớp trên cùng của Canvas để không bị video che mất
+            skipBtnObj.transform.SetAsLastSibling();
 
             // Gắn sự kiện click
             skipButton.onClick.RemoveListener(SkipCutscene);
             skipButton.onClick.AddListener(SkipCutscene);
 
-            Debug.Log("[CutsceneManager Self-Heal] Đã tự động tạo Nút Skip kính mờ cao cấp ở góc dưới bên phải Canvas!");
+            Debug.Log("[CutsceneManager Self-Heal] Đã tự động tạo Nút Skip đỏ kinh dị nổi bật ở lớp trên cùng Canvas!");
+        }
+
+        private void StyleSkipButton(UnityEngine.UI.Button btn)
+        {
+            if (btn == null) return;
+
+            // 1. Trang trí nền đỏ sẫm kính mờ chất lượng cao cho Image nút bấm
+            var buttonImage = btn.GetComponent<UnityEngine.UI.Image>();
+            if (buttonImage != null)
+            {
+                buttonImage.color = new Color(0.35f, 0.05f, 0.05f, 0.85f); // Đỏ horror nổi bật
+                buttonImage.sprite = null; // Bỏ sprite bị lỗi/mất link trong Unity 6
+            }
+
+            // 2. Định vị Text và gán font mặc định
+            var txt = btn.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (txt != null)
+            {
+                txt.text = "SKIP BỎ QUA >>";
+                txt.fontSize = 18f;
+                txt.alignment = TextAlignmentOptions.Center;
+                txt.color = Color.white;
+                txt.font = TMP_Settings.defaultFontAsset; // Sửa lỗi tàng hình chữ
+            }
+
+            // 3. Đảm bảo nút luôn active và vẽ trên cùng
+            btn.gameObject.SetActive(true);
+            btn.transform.SetAsLastSibling();
         }
 
         private IEnumerator RotateSpinnerRoutine(Transform t)
@@ -300,6 +333,14 @@ namespace GameUI
             {
                 sceneToLoadAfterCutscene = targetScene;
                 cutscenePanel.SetActive(true);
+
+                // Đảm bảo kích hoạt nút skip hoạt động và hiển thị ở lớp trên cùng (phòng khi bị tắt trong prefab)
+                if (skipButton != null)
+                {
+                    skipButton.gameObject.SetActive(true);
+                    skipButton.transform.SetAsLastSibling();
+                }
+
                 StartCoroutine(PlayCutsceneRoutine());
             }
             else
@@ -320,7 +361,7 @@ namespace GameUI
             Camera cam = Camera.main;
             if (cam == null)
             {
-                cam = Object.FindFirstObjectByType<Camera>(FindObjectsInactive.Include);
+                cam = Object.FindAnyObjectByType<Camera>(FindObjectsInactive.Include);
             }
 
             // Xử lý Render Mode theo tuỳ chọn của người dùng trên Inspector:

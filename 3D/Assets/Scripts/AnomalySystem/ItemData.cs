@@ -19,6 +19,6 @@ namespace AnomalySystem
         public Sprite itemIcon;
 
         [Tooltip("Prefab hiển thị bên trong ô (Dành cho trường hợp bạn muốn nhét 1 Prefab vào ô thay vì ảnh 2D)")]
-        public GameObject itemPrefab;
+        [SerializeField] public GameObject itemPrefab;
     }
 }

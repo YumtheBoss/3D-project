@@ -8,11 +8,45 @@ using AnomalySystem;
 /// </summary>
 public class PlayerHandheldManager : MonoBehaviour
 {
+    [Header("Cấu hình Gấu Bông")]
+    [Tooltip("Phím dùng để trang bị nhanh hoặc cất Gấu Bông")]
+    public KeyCode quickEquipKey = KeyCode.Q;
+    [Tooltip("Phím dùng để bật/tắt hào quang bảo vệ của Gấu Bông")]
+    public KeyCode toggleKey = KeyCode.G;
+
+    [Header("Âm thanh Bật/Tắt (Tùy chọn)")]
+    [Tooltip("Âm thanh sạc năng lượng khi bật hào quang")]
+    public AudioClip turnOnSound;
+    [Tooltip("Âm thanh xì tắt năng lượng khi tắt hào quang")]
+    public AudioClip turnOffSound;
+
+    public bool IsShieldActive => isBearLightActive && equippedBearVisual != null && equippedBearVisual.activeSelf && currentScale > 0.01f;
+
     private GameObject equippedBearVisual;
+    private GameObject bearSphere; // Quả cầu primitive sphere đại diện cho hào quang
     private Light bearLight;
+    
     private float pulseSpeed = 1.5f;
     private float minIntensity = 1.8f;
     private float maxIntensity = 3.0f;
+    private bool isBearLightActive = true; // Trạng thái bật/tắt của hào quang gấu
+
+    // Các biến phục vụ Lerp mượt mà
+    private float currentScale = 0f;
+    private float targetScale = 0f;
+    private float currentIntensity = 0f;
+    private float targetIntensity = 0f;
+
+    private Transform GetCameraTransform()
+    {
+        if (FirstPersonController.Instance != null && FirstPersonController.Instance.playerCamera != null)
+        {
+            return FirstPersonController.Instance.playerCamera.transform;
+        }
+        Camera cam = Camera.main;
+        if (cam != null) return cam.transform;
+        return transform; // Fallback
+    }
 
     private void Start()
     {
@@ -28,22 +62,120 @@ public class PlayerHandheldManager : MonoBehaviour
 
     private void Update()
     {
-        if (equippedBearVisual == null || !equippedBearVisual.activeSelf) return;
-
-        // 1. Hiệu ứng nhấp nháy/nhịp thở ánh sáng nhẹ nhàng
-        float t = (Mathf.Sin(Time.time * pulseSpeed * Mathf.PI) + 1f) * 0.5f;
-        if (bearLight != null)
+        // 1. Phím tắt trang bị nhanh (Q)
+        if (Input.GetKeyDown(quickEquipKey))
         {
-            bearLight.intensity = Mathf.Lerp(minIntensity, maxIntensity, t);
+            // Kiểm tra sở hữu vật phẩm trực tiếp từ PlayerPrefs để tránh lỗi desync Singleton khi test
+            bool hasTeddy = PlayerPrefs.GetString("SavedInventory", "").Contains("TeddyBear");
+            if (hasTeddy)
+            {
+                bool currentlyEquipped = PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
+                if (!currentlyEquipped)
+                {
+                    // Tự động trang bị gấu bông và bật hào quang lên
+                    isBearLightActive = true;
+                    if (InventoryManager.Instance != null)
+                    {
+                        InventoryManager.Instance.SetTeddyBearEquipped(true);
+                    }
+                    else
+                    {
+                        PlayerPrefs.SetInt("IsTeddyBearEquipped", 1);
+                        PlayerPrefs.Save();
+                    }
+                    PlaySound(turnOnSound);
+                    Debug.Log("[PlayerHandheldManager] Phím Q: Tự động trang bị Gấu Bông và BẬT hào quang bảo vệ!");
+                }
+                else
+                {
+                    // Tự động cất gấu bông đi (tháo trang bị)
+                    if (InventoryManager.Instance != null)
+                    {
+                        InventoryManager.Instance.SetTeddyBearEquipped(false);
+                    }
+                    else
+                    {
+                        PlayerPrefs.SetInt("IsTeddyBearEquipped", 0);
+                        PlayerPrefs.Save();
+                    }
+                    PlaySound(turnOffSound);
+                    Debug.Log("[PlayerHandheldManager] Phím Q: Tự động cất Gấu Bông!");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[PlayerHandheldManager] Không thể rút Gấu Bông vì bạn chưa nhặt nó trong game!");
+            }
         }
 
-        // 2. Bảo vệ người chơi: quét và đốt cháy quỷ xung quanh
+        // 2. Phím bật/tắt hào quang bảo vệ (G)
+        if (PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1)
+        {
+            if (Input.GetKeyDown(toggleKey))
+            {
+                isBearLightActive = !isBearLightActive;
+                PlaySound(isBearLightActive ? turnOnSound : turnOffSound);
+                Debug.Log($"[PlayerHandheldManager] Phím G: Đã {(isBearLightActive ? "BẬT" : "TẮT")} hào quang bảo vệ!");
+            }
+        }
+
+        bool isEquipped = PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
+
+        // 3. Tính toán mục tiêu co giãn quả cầu và cường độ ánh sáng
+        if (isEquipped && isBearLightActive)
+        {
+            targetScale = 0.08f;
+
+            // Kiểm tra xem có đang thanh tẩy phong ấn nào ở Room 5 không (Tăng tốc độ nhịp đập và độ sáng)
+            bool isPurging = Room5SealPurge.IsAnySealCurrentlyPurging();
+            float currentPulseSpeed = isPurging ? 5.0f : pulseSpeed;
+            float currentMin = isPurging ? 2.5f : minIntensity;
+            float currentMax = isPurging ? 4.5f : maxIntensity;
+
+            // Hiệu ứng nhịp thở/nhịp đập năng lượng
+            float t = (Mathf.Sin(Time.time * currentPulseSpeed * Mathf.PI) + 1f) * 0.5f;
+            targetIntensity = Mathf.Lerp(currentMin, currentMax, t);
+        }
+        else
+        {
+            // Co nhỏ quả cầu về 0 và tắt ánh sáng
+            targetScale = 0f;
+            targetIntensity = 0f;
+        }
+
+        // 4. Nội suy (Lerp) mượt mà các thông số visual
+        currentScale = Mathf.MoveTowards(currentScale, targetScale, Time.deltaTime * 0.32f); // Co giãn mượt mà trong ~0.25s
+        if (bearSphere != null)
+        {
+            bearSphere.transform.localScale = new Vector3(currentScale, currentScale, currentScale);
+        }
+
+        currentIntensity = Mathf.MoveTowards(currentIntensity, targetIntensity, Time.deltaTime * 12f);
+        if (bearLight != null)
+        {
+            bearLight.intensity = currentIntensity;
+            bearLight.enabled = currentIntensity > 0.01f;
+        }
+
+        // 5. Tự động ẩn hoàn toàn GameObject visual sau khi hiệu ứng co nhỏ kết thúc và không còn trang bị
+        if (equippedBearVisual != null && equippedBearVisual.activeSelf)
+        {
+            if (!isEquipped && currentScale <= 0.001f)
+            {
+                equippedBearVisual.SetActive(false);
+                Debug.Log("[PlayerHandheldManager] Đã ẩn hoàn toàn quả cầu gấu bông sau khi co nhỏ về 0.");
+            }
+        }
+
+        if (equippedBearVisual == null || !equippedBearVisual.activeSelf || currentScale <= 0.01f) return;
+
+        // 6. Bảo vệ người chơi: quét và thiêu đốt quỷ xung quanh
         ScanAndDamageDemons();
     }
 
     private void RefreshEquippedVisual()
     {
-        bool isEquipped = InventoryManager.Instance != null && InventoryManager.Instance.IsTeddyBearEquipped;
+        bool isEquipped = PlayerPrefs.GetInt("IsTeddyBearEquipped", 0) == 1;
 
         if (isEquipped)
         {
@@ -51,22 +183,18 @@ public class PlayerHandheldManager : MonoBehaviour
             {
                 CreateBearVisual();
             }
-            equippedBearVisual.SetActive(true);
+            equippedBearVisual.SetActive(true); // Bật GameObject lên để chạy hiệu ứng phình to dần
             Debug.Log("[PlayerHandheldManager] Đã kích hoạt quả cầu ánh sáng bảo vệ của Gấu Bông!");
         }
-        else
-        {
-            if (equippedBearVisual != null)
-            {
-                equippedBearVisual.SetActive(false);
-            }
-        }
+        // Khi không trang bị, Update sẽ tự co nhỏ quả cầu về 0 rồi tắt Active sau để mượt mà
     }
 
     private void CreateBearVisual()
     {
+        Transform playerCameraTransform = GetCameraTransform();
+
         equippedBearVisual = new GameObject("_EquippedBearVisual");
-        equippedBearVisual.transform.SetParent(transform, false); // Gắn con dưới Camera chính
+        equippedBearVisual.transform.SetParent(playerCameraTransform, false); // Gắn dưới Camera chính để xoay theo camera
         equippedBearVisual.transform.localPosition = new Vector3(0.35f, -0.28f, 0.48f); // Góc dưới phải màn hình
         equippedBearVisual.transform.localRotation = Quaternion.identity;
 
@@ -74,54 +202,111 @@ public class PlayerHandheldManager : MonoBehaviour
         GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         Destroy(sphere.GetComponent<Collider>()); // Bỏ va chạm để không gây nhiễu raycast/vật lý
         sphere.transform.SetParent(equippedBearVisual.transform, false);
-        sphere.transform.localScale = new Vector3(0.08f, 0.08f, 0.08f);
+        sphere.transform.localScale = Vector3.zero; // Khởi tạo bằng 0 để phình to dần mượt mà
+        bearSphere = sphere;
 
+        // Đảm bảo quả cầu tắt bóng đổ để không cản camera
         Renderer r = sphere.GetComponent<Renderer>();
         if (r != null)
         {
-            // Tạo material phát sáng vàng HDR
-            Material mat = new Material(Shader.Find("Standard"));
-            mat.color = new Color(1f, 0.78f, 0.38f);
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", new Color(1f, 0.7f, 0.3f) * 2.5f);
-            r.material = mat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+
+            // Sử dụng chính material mặc định của Primitive để đảm bảo tương thích 100% với URP/HDRP/Standard (không bị đốm tím)
+            Material mat = r.material;
+            if (mat != null)
+            {
+                Color goldColor = new Color(1f, 0.78f, 0.38f);
+                if (mat.HasProperty("_Color")) mat.color = goldColor;
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", goldColor);
+                
+                mat.EnableKeyword("_EMISSION");
+                if (mat.HasProperty("_EmissionColor"))
+                {
+                    mat.SetColor("_EmissionColor", new Color(1f, 0.7f, 0.3f) * 2.5f);
+                }
+            }
         }
 
-        // Tạo Point Light phát ra xung quanh
-        GameObject lightObj = new GameObject("BearPointLight");
+        // Tạo Spot Light phát ra phía trước
+        GameObject lightObj = new GameObject("BearSpotLight");
         lightObj.transform.SetParent(equippedBearVisual.transform, false);
-        lightObj.transform.localPosition = Vector3.zero;
+        // Đặt nguồn sáng của Gấu bông trùng khít với tâm Camera chính để triệt tiêu hoàn toàn lệch góc (parallax offset)
+        lightObj.transform.localPosition = new Vector3(-0.35f, 0.28f, -0.48f);
+        lightObj.transform.localRotation = Quaternion.identity;
 
         bearLight = lightObj.AddComponent<Light>();
-        bearLight.type = LightType.Point;
+        bearLight.type = LightType.Spot;
+        bearLight.spotAngle = 35f;
+        bearLight.innerSpotAngle = 20f;
         bearLight.color = new Color(1f, 0.75f, 0.35f); // Vàng ấm áp xua đuổi tà ác
-        bearLight.range = 8f;
-        bearLight.intensity = minIntensity;
+        bearLight.range = 15f; // Tầm xa tăng lên 15m để khớp với đèn pin
+        bearLight.intensity = 0f; // Khởi tạo bằng 0 để sáng lên dần mượt mà
         bearLight.shadows = LightShadows.Soft;
     }
 
     private void ScanAndDamageDemons()
     {
         if (bearLight == null) return;
+        Transform playerCameraTransform = GetCameraTransform();
+        if (playerCameraTransform == null) return;
 
-        // Quét quỷ trong phạm vi 8m xung quanh người chơi
-        Collider[] hits = Physics.OverlapSphere(transform.position, 8f);
+        // Đọc trạng thái zoom từ FirstPersonController hoặc phím giữ chuột phải
+        bool isZooming = (FirstPersonController.Instance != null && FirstPersonController.Instance.IsZoomed) || Input.GetKey(KeyCode.Mouse1);
+        float multiplier = isZooming ? 3.0f : 1.0f;
+
+        // Quét quỷ trong phạm vi và hình nón sáng của bearLight (Spot Light) từ vị trí Camera
+        float range = bearLight.range;
+        Collider[] hits = Physics.OverlapSphere(playerCameraTransform.position, range);
         foreach (Collider col in hits)
         {
-            // Quét quỷ Room 4 / Room 5 (navmesh chase)
-            DemonController demon = col.GetComponent<DemonController>();
-            if (demon != null)
-            {
-                // Tự động gây sát thương làm quỷ flinch và tan biến
-                demon.OnLightHit(Time.deltaTime * 0.8f);
-            }
+            // Sử dụng tâm hình học của Collider (bounds.center - thường ở ngực quái) thay vì chân quái (col.transform.position)
+            // giúp tránh hiện tượng lệch góc chúc xuống khi quái lại gần làm trượt nón sáng
+            Vector3 targetCenter = col.bounds.center;
+            Vector3 dir = (targetCenter - playerCameraTransform.position).normalized;
+            float angle = Vector3.Angle(playerCameraTransform.forward, dir);
 
-            // Quét quỷ tầng chuyên dụng Room 5
-            FloorDemonAI floorDemon = col.GetComponent<FloorDemonAI>();
-            if (floorDemon != null)
+            // Chỉ thiêu đốt nếu quỷ nằm trong góc chiếu nón sáng của Gấu Bông
+            if (angle <= bearLight.spotAngle * 0.5f)
             {
-                floorDemon.OnLightHit(Time.deltaTime * 0.8f);
+                // Quét quỷ Room 4 / Room 5 (navmesh chase)
+                DemonController demon = col.GetComponentInParent<DemonController>();
+                if (demon != null)
+                {
+                    // Tự động gây sát thương làm quỷ flinch và tan biến
+                    demon.OnLightHit(Time.deltaTime * 0.8f * multiplier, isZooming);
+                }
+
+                // Quét quỷ tầng chuyên dụng Room 5
+                FloorDemonAI floorDemon = col.GetComponentInParent<FloorDemonAI>();
+                if (floorDemon != null)
+                {
+                    floorDemon.OnLightHit(Time.deltaTime * 0.8f * multiplier, isZooming);
+                }
             }
+        }
+    }
+
+    private void PlaySound(AudioClip clip)
+    {
+        if (clip == null) return;
+        
+        if (bearLight != null)
+        {
+            AudioSource source = bearLight.GetComponent<AudioSource>();
+            if (source == null)
+            {
+                source = bearLight.gameObject.AddComponent<AudioSource>();
+                source.spatialBlend = 0f; // Âm thanh stereo phẳng 2D cho tiếng bật/tắt gần tai
+            }
+            
+            // Lấy âm lượng SFX toàn cục
+            float globalSfxVol = AudioManager.Instance != null ? AudioManager.Instance.GetSFXVolume() : PlayerPrefs.GetFloat("SFXVolume", 1f);
+            source.PlayOneShot(clip, globalSfxVol);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, GetCameraTransform().position);
         }
     }
 }

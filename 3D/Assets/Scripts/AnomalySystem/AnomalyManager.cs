@@ -30,6 +30,10 @@ namespace AnomalySystem
 
         public void GenerateNewLevel(int currentLevel)
         {
+            // Tự động dọn dẹp các tham chiếu Null hoặc đã bị hủy (Self-Healing)
+            anomalyObjects.RemoveAll(item => item == null);
+            availableAnomalies.RemoveAll(item => item == null);
+
             // 1. Đặt tất cả về trạng thái bình thường
             foreach (var anomaly in anomalyObjects)
             {
@@ -92,6 +96,14 @@ namespace AnomalySystem
                 {
                     Debug.Log("[AnomalyManager] Đã dùng hết toàn bộ Anomaly. Đang nạp lại danh sách mới...");
                     availableAnomalies.AddRange(anomalyObjects);
+                    availableAnomalies.RemoveAll(item => item == null);
+                }
+
+                if (availableAnomalies.Count == 0)
+                {
+                    Debug.LogWarning("[AnomalyManager] Không có Anomaly nào khả dụng sau khi lọc bỏ phần tử bị hủy!");
+                    isCurrentLevelAnomaly = false;
+                    return;
                 }
 
                 // 5. Bốc thăm 1 vật thể từ danh sách CÒN LẠI (chưa xuất hiện)
@@ -101,9 +113,16 @@ namespace AnomalySystem
                 // XOÁ vật thể này khỏi danh sách để các vòng sau không bốc trúng nữa
                 availableAnomalies.RemoveAt(randomIndex);
 
-                activeAnomaly.SetAnomaly();
-
-                Debug.Log($"[AnomalyManager] Màn này CÓ bất thường ở vật thể: {activeAnomaly.gameObject.name}. (Còn lại {availableAnomalies.Count} Anomaly chưa xuất hiện)");
+                if (activeAnomaly != null)
+                {
+                    activeAnomaly.SetAnomaly();
+                    Debug.Log($"[AnomalyManager] Màn này CÓ bất thường ở vật thể: {activeAnomaly.gameObject.name}. (Còn lại {availableAnomalies.Count} Anomaly chưa xuất hiện)");
+                }
+                else
+                {
+                    isCurrentLevelAnomaly = false;
+                    Debug.LogWarning("[AnomalyManager] Bốc trúng Anomaly bị Null hoặc bị hủy!");
+                }
             }
             else
             {

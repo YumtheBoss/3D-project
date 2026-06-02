@@ -30,6 +30,8 @@ public class EndingController : MonoBehaviour
     private Text mainText;
     private Button retryButton;
     private Button menuButton;
+    private InputField nameInputField;
+    private Button submitScoreButton;
     private AudioSource audioSource;
 
     private void Awake()
@@ -97,6 +99,18 @@ public class EndingController : MonoBehaviour
             new Vector2(0.55f, 0.08f), new Vector2(0.75f, 0.22f), font);
         menuButton.onClick.AddListener(OnMenu);
 
+        // --- Name InputField & Submit Score Button for GameOver ---
+        nameInputField = CreateInputField(canvasObj.transform, "NameInputField", "Nhập tên của bạn...", font);
+        RectTransform ipRt = nameInputField.GetComponent<RectTransform>();
+        ipRt.anchorMin = new Vector2(0.25f, 0.26f);
+        ipRt.anchorMax = new Vector2(0.50f, 0.38f);
+        ipRt.offsetMin = Vector2.zero;
+        ipRt.offsetMax = Vector2.zero;
+
+        submitScoreButton = CreateButton(canvasObj.transform, "SubmitScoreBtn", "Gửi Bảng Xếp Hạng",
+            new Vector2(0.55f, 0.26f), new Vector2(0.75f, 0.38f), font);
+        submitScoreButton.onClick.AddListener(OnSubmitScore);
+
         // --- AudioSource ---
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
@@ -146,35 +160,68 @@ public class EndingController : MonoBehaviour
 
     public void ShowGoodEnding(float playTime)
     {
-        int minutes = Mathf.FloorToInt(playTime / 60f);
-        int seconds = Mathf.FloorToInt(playTime % 60f);
+        if (GameEndUIController.Instance != null)
+        {
+            GameEndUIController.Instance.ShowEndScreen(playTime);
+        }
+        else
+        {
+            int minutes = Mathf.FloorToInt(playTime / 60f);
+            int seconds = Mathf.FloorToInt(playTime % 60f);
 
-        background.color = Color.white;
-        mainText.color = new Color(0.1f, 0.1f, 0.1f);
-        mainText.fontSize = 52;
-        mainText.text = $"Bạn đã được giải thoát.\n\n<size=36>Thời gian: {minutes} phút {seconds} giây</size>";
+            background.color = Color.white;
+            mainText.color = new Color(0.1f, 0.1f, 0.1f);
+            mainText.fontSize = 52;
+            mainText.text = $"Bạn đã được giải thoát.\n\n<size=36>Thời gian: {minutes} phút {seconds} giây</size>";
 
-        retryButton.gameObject.SetActive(false);
-        // Căn giữa nút menu cho good ending
-        RectTransform menuRt = menuButton.GetComponent<RectTransform>();
-        menuRt.anchorMin = new Vector2(0.35f, 0.08f);
-        menuRt.anchorMax = new Vector2(0.65f, 0.22f);
+            retryButton.gameObject.SetActive(false);
+            
+            if (nameInputField != null) nameInputField.gameObject.SetActive(false);
+            if (submitScoreButton != null) submitScoreButton.gameObject.SetActive(false);
 
-        OpenCanvas();
-        PlayOneShot(goodEndingMusic);
+            // Căn giữa nút menu cho good ending
+            RectTransform menuRt = menuButton.GetComponent<RectTransform>();
+            menuRt.anchorMin = new Vector2(0.35f, 0.08f);
+            menuRt.anchorMax = new Vector2(0.65f, 0.22f);
+
+            OpenCanvas();
+            PlayOneShot(goodEndingMusic);
+        }
     }
 
     public void ShowBadEnding(string reason)
     {
+        float playTime = RoomManager.Instance != null ? RoomManager.Instance.TotalPlayTime : 0f;
+        int minutes = Mathf.FloorToInt(playTime / 60f);
+        int seconds = Mathf.FloorToInt(playTime % 60f);
+
+        // Lưu lại thời gian chơi vào PlayerPrefs (Persistence)
+        PlayerPrefs.SetFloat("LastPlayTime", playTime);
+        PlayerPrefs.Save();
+
         background.color = new Color(0.04f, 0f, 0f);
         mainText.color = new Color(0.85f, 0f, 0f);
-        mainText.fontSize = 80;
-        mainText.text = "GAME OVER";
+        mainText.fontSize = 64;
+        mainText.text = $"GAME OVER\n\n<size=28><color=#cccccc>Thời gian đã chơi: {minutes} phút {seconds} giây</color></size>";
 
         retryButton.gameObject.SetActive(true);
         RectTransform menuRt = menuButton.GetComponent<RectTransform>();
         menuRt.anchorMin = new Vector2(0.55f, 0.08f);
         menuRt.anchorMax = new Vector2(0.75f, 0.22f);
+
+        if (nameInputField != null)
+        {
+            nameInputField.gameObject.SetActive(true);
+            nameInputField.interactable = true;
+            nameInputField.text = ""; // Xoá tên cũ
+        }
+        if (submitScoreButton != null)
+        {
+            submitScoreButton.gameObject.SetActive(true);
+            submitScoreButton.interactable = true;
+            Text btnText = submitScoreButton.GetComponentInChildren<Text>();
+            if (btnText != null) btnText.text = "Gửi Bảng Xếp Hạng";
+        }
 
         OpenCanvas();
         PlayOneShot(badEndingZombieSound);
@@ -183,15 +230,37 @@ public class EndingController : MonoBehaviour
 
     public void ShowBadEndingTrapped()
     {
+        float playTime = RoomManager.Instance != null ? RoomManager.Instance.TotalPlayTime : 0f;
+        int minutes = Mathf.FloorToInt(playTime / 60f);
+        int seconds = Mathf.FloorToInt(playTime % 60f);
+
+        // Lưu lại thời gian chơi vào PlayerPrefs (Persistence)
+        PlayerPrefs.SetFloat("LastPlayTime", playTime);
+        PlayerPrefs.Save();
+
         background.color = new Color(0.02f, 0f, 0f);
         mainText.color = new Color(0.6f, 0f, 0f);
-        mainText.fontSize = 44;
-        mainText.text = "Bạn bị mắc kẹt trong thực thể mãi mãi...\n\nKhông có lối thoát.";
+        mainText.fontSize = 36;
+        mainText.text = $"Bạn bị mắc kẹt trong thực thể mãi mãi...\n\nKhông có lối thoát.\n\n<size=28><color=#999999>Thời gian đã chơi: {minutes} phút {seconds} giây</color></size>";
 
         retryButton.gameObject.SetActive(true);
         RectTransform menuRt = menuButton.GetComponent<RectTransform>();
         menuRt.anchorMin = new Vector2(0.55f, 0.08f);
         menuRt.anchorMax = new Vector2(0.75f, 0.22f);
+
+        if (nameInputField != null)
+        {
+            nameInputField.gameObject.SetActive(true);
+            nameInputField.interactable = true;
+            nameInputField.text = ""; // Xoá tên cũ
+        }
+        if (submitScoreButton != null)
+        {
+            submitScoreButton.gameObject.SetActive(true);
+            submitScoreButton.interactable = true;
+            Text btnText = submitScoreButton.GetComponentInChildren<Text>();
+            if (btnText != null) btnText.text = "Gửi Bảng Xếp Hạng";
+        }
 
         OpenCanvas();
         PlayOneShot(badEndingZombieSound);
@@ -228,13 +297,124 @@ public class EndingController : MonoBehaviour
     {
         audioSource.Stop();
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+
+        // Ẩn Canvas kết thúc để không bị kẹt đè lên màn hình
+        if (endCanvas != null) endCanvas.gameObject.SetActive(false);
+
+        // Kích hoạt Reset về Room 0 qua RoomManager
+        if (RoomManager.Instance != null)
+        {
+            RoomManager.Instance.ResetToRoom0();
+        }
+        else
+        {
+            // Dự phòng nếu không tìm thấy RoomManager
+            PlayerPrefs.SetInt("CurrentRoom", 0);
+            PlayerPrefs.Save();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
     private void OnMenu()
     {
         audioSource.Stop();
         Time.timeScale = 1f;
+
+        // Ẩn Canvas kết thúc để không bị kẹt đè lên màn hình
+        if (endCanvas != null) endCanvas.gameObject.SetActive(false);
+
         SceneManager.LoadScene(0);
+    }
+
+    private InputField CreateInputField(Transform parent, string goName, string placeholderText, Font font)
+    {
+        // 1. Tạo GameObject chính cho InputField
+        GameObject ipObj = new GameObject(goName);
+        ipObj.transform.SetParent(parent, false);
+        Image bgImage = ipObj.AddComponent<Image>();
+        bgImage.color = new Color(0.12f, 0.12f, 0.12f, 0.95f); // Nền xám tối
+        
+        InputField inputField = ipObj.AddComponent<InputField>();
+        
+        // 2. Tạo Text hiển thị nội dung nhập (Text Component)
+        GameObject textObj = new GameObject("Text");
+        textObj.transform.SetParent(ipObj.transform, false);
+        Text text = textObj.AddComponent<Text>();
+        text.font = font;
+        text.fontSize = 24;
+        text.color = Color.white;
+        text.alignment = TextAnchor.MiddleLeft;
+        text.supportRichText = false;
+        
+        RectTransform textRt = textObj.GetComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.offsetMin = new Vector2(20, 5); // Padding trái 20px
+        textRt.offsetMax = new Vector2(-20, -5);
+
+        // 3. Tạo Placeholder hiển thị gợi ý (Placeholder Text)
+        GameObject phObj = new GameObject("Placeholder");
+        phObj.transform.SetParent(ipObj.transform, false);
+        Text phText = phObj.AddComponent<Text>();
+        phText.font = font;
+        phText.fontSize = 24;
+        phText.color = new Color(0.5f, 0.5f, 0.5f, 0.8f); // Màu chữ xám gợi ý
+        phText.text = placeholderText;
+        phText.alignment = TextAnchor.MiddleLeft;
+        phText.fontStyle = FontStyle.Italic;
+        
+        RectTransform phRt = phObj.GetComponent<RectTransform>();
+        phRt.anchorMin = Vector2.zero;
+        phRt.anchorMax = Vector2.one;
+        phRt.offsetMin = new Vector2(20, 5);
+        phRt.offsetMax = new Vector2(-20, -5);
+
+        // 4. Liên kết các thành phần vào InputField
+        inputField.textComponent = text;
+        inputField.placeholder = phText;
+        
+        return inputField;
+    }
+
+    private void OnSubmitScore()
+    {
+        string name = nameInputField != null ? nameInputField.text.Trim() : "";
+        if (string.IsNullOrEmpty(name))
+        {
+            name = "Player"; // Tên mặc định nếu bỏ trống
+        }
+
+        float playTime = RoomManager.Instance != null ? RoomManager.Instance.TotalPlayTime : 0f;
+
+        Debug.Log($"[EndingController] Gửi điểm số '{name}' với thời gian {playTime:F2}s lên Firebase...");
+
+        if (FirebaseDatabaseManager.Instance != null)
+        {
+            FirebaseDatabaseManager.Instance.SaveLeaderboardScore(name, playTime);
+        }
+        else
+        {
+            Debug.LogError("[EndingController] Không tìm thấy FirebaseDatabaseManager.Instance!");
+        }
+
+        // Đặt cờ quay về màn hình Leaderboard
+        PlayerPrefs.SetInt("ShowLeaderboardOnStart", 1);
+        PlayerPrefs.Save();
+
+        // Vô hiệu hoá ô nhập tên và nút gửi điểm
+        if (nameInputField != null)
+        {
+            nameInputField.interactable = false;
+        }
+
+        if (submitScoreButton != null)
+        {
+            submitScoreButton.interactable = false;
+            Text btnText = submitScoreButton.GetComponentInChildren<Text>();
+            if (btnText != null)
+            {
+                btnText.text = "Đã Gửi Thành Công!";
+            }
+        }
     }
 }

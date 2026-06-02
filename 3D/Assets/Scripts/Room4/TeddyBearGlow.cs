@@ -127,6 +127,9 @@ public class TeddyBearGlow : MonoBehaviour
             AnomalySystem.InventoryManager.Instance.AddItem(bearItemID);
         }
 
+        // Hiển thị HUD hướng dẫn trang bị gấu bông bằng phím Q và G
+        TutorialHUDManager.Instance?.ShowTutorial(TutorialHUDManager.TutorialType.EquipTeddy);
+
         // 5. Bắt đầu coroutine để con gấu biến mất sau khi nhặt
         StartCoroutine(PickupRoutine());
     }

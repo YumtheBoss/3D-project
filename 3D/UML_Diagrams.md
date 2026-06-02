@@ -372,72 +372,92 @@ stateDiagram-v2
 Sơ đồ này mô tả sự điều hướng của người chơi qua các giao diện người dùng (UI) khác nhau trong game, từ màn hình chính (Main Menu), màn hình cài đặt (Settings), đến giao diện khi đang chơi (In-Game HUD) và màn hình tạm dừng (Pause Menu).
 
 ```mermaid
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px', 'fontFamily': 'Arial' }}}%%
 flowchart TD
-    Start([Khởi động Game]) --> MainMenu
+    Launch([Khởi chạy]) --> MainMenu
     
     subgraph SG_MainMenu ["🏠 Giao diện Main Menu"]
         direction TB
         MainMenu[Màn hình chính]
-        BtnPlay(Nút: Bắt đầu Game)
+        BtnPlay(Nút: Bắt đầu)
+        BtnContinue(Nút: Tiếp tục)
         BtnSettingsMain(Nút: Cài đặt)
-        BtnQuit(Nút: Thoát Game)
+        BtnQuit(Nút: Thoát)
         
         MainMenu --> BtnPlay
+        MainMenu --> BtnContinue
         MainMenu --> BtnSettingsMain
         MainMenu --> BtnQuit
     end
     
-    subgraph SG_Settings ["⚙️ Giao diện Cài đặt (Settings)"]
+    subgraph SG_Settings ["⚙️ Bảng Thiết lập (Màn hình cấu hình)"]
         direction TB
-        SettingsPanel[Bảng Cài đặt]
-        AudioSet[Chỉnh Âm lượng]
-        GraphicSet[Chỉnh Đồ họa / Gameplay]
+        SettingsPanel[Màn hình cấu hình]
+        AudioSet[Âm lượng]
+        GraphicSet[Cài đặt Đồ họa]
         BtnBack(Nút: Quay lại)
         
         SettingsPanel --- AudioSet & GraphicSet
         SettingsPanel --> BtnBack
     end
     
-    subgraph SG_InGame ["🎮 Giao diện Trong Game (In-Game)"]
+    subgraph SG_InGame ["🎮 Giao diện Trong Game (In-Game HUD)"]
         direction TB
-        HUD[In-Game HUD / Hiển thị Level]
+        HUD[HUD: Cấp độ hiện tại]
+        ItemShortcut[Phím tắt vật phẩm]
     end
     
     subgraph SG_PauseMenu ["⏸️ Giao diện Tạm dừng (Pause Menu)"]
         direction TB
-        PauseMenu[Màn hình Tạm dừng]
+        PauseMenu[Màn hình Pause]
         BtnResume(Nút: Tiếp tục)
         BtnSettingsPause(Nút: Cài đặt)
-        BtnHome(Nút: Về Main Menu)
+        BtnHome(Nút: Về Menu)
         
         PauseMenu --> BtnResume
         PauseMenu --> BtnSettingsPause
         PauseMenu --> BtnHome
     end
 
+    subgraph SG_Ending ["🏆 Hệ thống Kết thúc & Sinh tồn"]
+        direction LR
+        GoodEnding[Màn hình Good Ending]
+        GameOver[Màn hình Game Over]
+    end
+
+    Exit([Thoát])
+
     %% Điều hướng giữa các UI
-    BtnPlay ==>|"Load Scene Game"| HUD
+    BtnPlay ==>|"Tải màn mới"| HUD
+    BtnContinue ==>|"Đọc PlayerPrefs -> Tải"| HUD
     BtnSettingsMain -->|"Mở Panel"| SettingsPanel
-    BtnQuit -->|"Application.Quit()"| Exit([Thoát])
+    BtnQuit -->|"Thoát game"| Exit
     
-    BtnBack -->|"Đóng Panel (về Main Menu)"| MainMenu
-    BtnBack -.->|"Đóng Panel (về Pause Menu)"| PauseMenu
+    BtnBack -->|"Đóng Panel"| MainMenu
+    BtnBack -.->|"Đóng Panel"| PauseMenu
     
-    HUD -->|"Nhấn phím ESC / Pause\n(Time.timeScale = 0)"| PauseMenu
-    BtnResume ==>|"Đóng Pause Menu\n(Time.timeScale = 1)"| HUD
+    HUD -->|"Bấm ESC / Pause\n(Dừng Time)"| PauseMenu
+    BtnResume ==>|"Đóng Pause\n(Chạy Time)"| HUD
     BtnSettingsPause -->|"Mở Panel"| SettingsPanel
-    BtnHome -->|"Load Scene MainMenu"| MainMenu
-    
-    %% Styling
+    BtnHome -->|"Quay về"| MainMenu
+
+    HUD -->|"Vượt Room 5 thành công"| GoodEnding
+    HUD -->|"Chết / Jumpscare"| GameOver
+    GameOver -->|"Bấm Chơi lại"| HUD
+    GameOver -->|"Quay về"| MainMenu
+
+    %% Styling chuyên nghiệp
     classDef menu fill:#e3f2fd,stroke:#0d6efd,stroke-width:2px,color:#000;
-    classDef btn fill:#fff3cd,stroke:#ffc107,stroke-width:1px,color:#000;
-    classDef ingame fill:#d1e7dd,stroke:#198754,stroke-width:2px,color:#000;
-    classDef pause fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#000;
-    
+    classDef gameplay fill:#d1e7dd,stroke:#198754,stroke-width:2px,color:#000;
+    classDef pause fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#000;
+    classDef danger fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#000;
+    classDef btn fill:#ffffff,stroke:#495057,stroke-width:1px,color:#212529;
+
     class MainMenu,SettingsPanel menu;
-    class BtnPlay,BtnSettingsMain,BtnQuit,BtnBack,BtnResume,BtnSettingsPause,BtnHome btn;
-    class HUD ingame;
+    class HUD,ItemShortcut gameplay;
     class PauseMenu pause;
+    class GameOver,GoodEnding danger;
+    class BtnPlay,BtnContinue,BtnSettingsMain,BtnQuit,BtnBack,BtnResume,BtnSettingsPause,BtnHome btn;
 ```
 
 ---

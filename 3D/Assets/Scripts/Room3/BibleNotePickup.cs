@@ -199,29 +199,81 @@ public class BibleNotePickup : MonoBehaviour
         if (lightToReplace != null)    lightToReplace.gameObject.SetActive(false);
         if (replacementLight != null)  replacementLight.gameObject.SetActive(true);
 
-        // Đèn đổi màu (Theo yêu cầu mới)
+        // Đèn đổi màu cũ -> Bây giờ tắt đi để đảm bảo chỉ có 1 đèn replacement bật, 2 đèn kia tắt
         if (lightToChangeColor != null)
         {
-            lightToChangeColor.color = targetColor;
+            lightToChangeColor.gameObject.SetActive(false);
         }
 
-        // Khóa cánh cửa vào ban đầu (Theo yêu cầu mới)
-        if (entryDoor != null)
+        // --- CƠ CHẾ QUÉT DỌN TỰ ĐỘNG DỰ PHÒNG (Self-Healing) ---
+        // Tự động tìm node cha "R3" và tắt tất cả các đèn con bên trong ngoại trừ đèn thay thế
+        GameObject r3Parent = GameObject.Find("R3");
+        if (r3Parent == null) r3Parent = GameObject.Find("R3 ");
+        if (r3Parent != null)
         {
-            // Tắt Collider để chặn đi qua/tương tác vật lý
-            Collider col = entryDoor.GetComponent<Collider>();
-            if (col != null) col.enabled = false;
-
-            // Tắt các script tương tác cửa
-            MonoBehaviour[] scripts = entryDoor.GetComponents<MonoBehaviour>();
-            foreach (var script in scripts)
+            Light[] r3ChildLights = r3Parent.GetComponentsInChildren<Light>(true);
+            foreach (Light l in r3ChildLights)
             {
-                if (script == null) continue;
-                if (script.GetType().Name.Contains("Door") || script.GetType().Name.Contains("Interact"))
+                if (l != null && !l.gameObject.name.Contains("Replacement"))
                 {
-                    script.enabled = false;
+                    l.gameObject.SetActive(false);
+                    Debug.Log($"[BibleNotePickup Self-Heal] Đã tắt đèn con dưới node R3: {l.gameObject.name}");
                 }
             }
+
+            // TẮT HIỆU ỨNG PHÁT SÁNG CỦA CÁC BÓNG ĐÈN (Turn off emissive lamp meshes)
+            Renderer[] r3Renderers = r3Parent.GetComponentsInChildren<Renderer>(true);
+            foreach (Renderer renderer in r3Renderers)
+            {
+                if (renderer != null && renderer.gameObject.name.ToLower().Contains("lamp"))
+                {
+                    // Tạo bản sao material để không làm thay đổi các phòng khác
+                    Material[] mats = renderer.materials;
+                    foreach (Material m in mats)
+                    {
+                        if (m != null)
+                        {
+                            m.DisableKeyword("_EMISSION");
+                            if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", Color.black);
+                            
+                            // Chuyển màu phát sáng trắng mặc định của bóng sang màu tối (tắt bóng)
+                            if (m.HasProperty("_Color")) m.color = new Color(0.15f, 0.15f, 0.15f);
+                            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", new Color(0.15f, 0.15f, 0.15f));
+                        }
+                    }
+                    renderer.materials = mats;
+                    Debug.Log($"[BibleNotePickup Self-Heal] Đã tắt phát sáng của bóng đèn: {renderer.gameObject.name}");
+                }
+            }
+        }
+
+        // Vô hiệu hóa bộ sự kiện nhấp nháy R3FlickerEvent để không xung đột ghi đè các đèn
+        AnomalySystem.R3FlickerEvent flickerEvent = FindAnyObjectByType<AnomalySystem.R3FlickerEvent>();
+        if (flickerEvent != null)
+        {
+            // Tắt tất cả các đèn trong danh sách nhấp nháy của R3 để đảm bảo tối hoàn toàn ngoại trừ đèn thay thế
+            if (flickerEvent.r3Lights != null)
+            {
+                foreach (Light l in flickerEvent.r3Lights)
+                {
+                    if (l != null && !l.gameObject.name.Contains("Replacement"))
+                    {
+                        l.gameObject.SetActive(false);
+                    }
+                }
+            }
+            flickerEvent.StopFlickerEvent();
+            flickerEvent.gameObject.SetActive(false);
+        }
+
+        // Giữ cánh cửa vào ban đầu hoạt động (để người chơi bấm vào hiện độc thoại gợi ý)
+        if (entryDoor != null)
+        {
+            Collider col = entryDoor.GetComponent<Collider>();
+            if (col != null) col.enabled = true;
+
+            InteractiveDoor doorScript = entryDoor.GetComponent<InteractiveDoor>();
+            if (doorScript != null) doorScript.enabled = true;
         }
 
         postNoteMonologue?.PlayManually();

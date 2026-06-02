@@ -172,6 +172,18 @@ public class BookPickup : MonoBehaviour
         if (mr != null) mr.enabled = visible;
     }
 
+    private void FindPlayerRobust()
+    {
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p == null) p = GameObject.Find("Player");
+        if (p == null)
+        {
+            CharacterController cc = FindAnyObjectByType<CharacterController>();
+            if (cc != null) p = cc.gameObject;
+        }
+        if (p != null) playerTransform = p.transform;
+    }
+
     // ── Update ───────────────────────────────────────────────────
 
     private void Update()
@@ -182,7 +194,13 @@ public class BookPickup : MonoBehaviour
             return;
         }
 
-        if (hasBeenPickedUp || playerTransform == null) return;
+        if (hasBeenPickedUp) return;
+
+        if (playerTransform == null)
+        {
+            FindPlayerRobust();
+            if (playerTransform == null) return;
+        }
 
         float dist = Vector3.Distance(transform.position, playerTransform.position);
         if (dist <= pickupRange)
