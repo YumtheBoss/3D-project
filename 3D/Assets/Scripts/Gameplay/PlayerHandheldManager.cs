@@ -290,6 +290,25 @@ public class PlayerHandheldManager : MonoBehaviour
             {
                 Destroy(col);
             }
+
+            // Tắt/Hủy Animator để tránh việc Animation ghi đè tọa độ của gấu trên tay
+            Animator anim = bearInstance.GetComponent<Animator>();
+            if (anim == null) anim = bearInstance.GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                anim.enabled = false;
+                Destroy(anim);
+            }
+
+            // Hủy tất cả các script tự chế trên gấu bông để tránh chúng tự di chuyển hoặc xử lý vị trí của gấu
+            MonoBehaviour[] scripts = bearInstance.GetComponentsInChildren<MonoBehaviour>(true);
+            foreach (var script in scripts)
+            {
+                if (script != null)
+                {
+                    Destroy(script);
+                }
+            }
             
             // Tính toán tâm hình học để triệt tiêu mọi pivot offset sai lệch của file 3D
             Vector3 localCenter = Vector3.zero;
