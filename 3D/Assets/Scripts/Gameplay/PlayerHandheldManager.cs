@@ -18,7 +18,7 @@ public class PlayerHandheldManager : MonoBehaviour
     [Tooltip("Prefab của gấu bông (Voodoo Doll) để hiển thị trên tay người chơi")]
     public GameObject teddyBearPrefab;
     [Tooltip("Vị trí hiển thị của gấu bông so với Camera (X: Trái/Phải, Y: Trên/Dưới, Z: Trước/Sau)")]
-    public Vector3 bearPositionOffset = new Vector3(0f, -0.2f, 0.35f); // Đặt chính diện bên dưới camera
+    public Vector3 bearPositionOffset = new Vector3(0f, -0.2f, 0.35f);
     [Tooltip("Góc xoay của gấu bông so với Camera")]
     public Vector3 bearRotationOffset = new Vector3(0f, 180f, 0f);
     [Tooltip("Tỷ lệ thu phóng (Scale) mong muốn của gấu bông khi trang bị")]
@@ -34,7 +34,7 @@ public class PlayerHandheldManager : MonoBehaviour
 
     private GameObject equippedBearVisual;
     private GameObject bearInstance; // Chú gấu bông thực tế (nếu có prefab)
-    private GameObject bearInstanceForScale; // Đối tượng helper để thực hiện co giãn mượt mà
+    private GameObject bearInstanceForScale; // Đối tượng thực hiện co giãn mượt mà
     private Vector3 bearOriginalScale = Vector3.one; // Lưu scale ban đầu của prefab
     private GameObject bearSphere; // Quả cầu primitive sphere đại diện cho hào quang (nếu không có prefab)
     private Light bearLight; // Spot Light chiếu trước
@@ -79,15 +79,6 @@ public class PlayerHandheldManager : MonoBehaviour
 
     private void Start()
     {
-        // Tự động tối ưu hóa kích thước và góc quay nếu giá trị scale cũ hoặc vị trí lệch cũ bị giữ lại trong Unity Editor
-        if (teddyBearPrefab != null && (bearScaleMultiplier == 1.0f || bearPositionOffset.x == 0.2f || bearPositionOffset.x == 0.35f))
-        {
-            bearScaleMultiplier = 0.08f;
-            bearPositionOffset = new Vector3(0f, -0.2f, 0.35f);
-            bearRotationOffset = new Vector3(0f, 180f, 0f);
-            Debug.Log("[PlayerHandheldManager] Đã tự động tối ưu cấu hình hiển thị của gấu bông 3D về chính diện bên dưới!");
-        }
-
         // Đăng ký sự kiện thay đổi trạng thái trang bị túi đồ
         InventoryManager.OnEquippedStateChanged += RefreshEquippedVisual;
         RefreshEquippedVisual();
@@ -310,35 +301,15 @@ public class PlayerHandheldManager : MonoBehaviour
                 }
             }
             
-            // Tính toán tâm hình học để triệt tiêu mọi pivot offset sai lệch của file 3D
-            Vector3 localCenter = Vector3.zero;
-            Renderer[] renderers = bearInstance.GetComponentsInChildren<Renderer>(true);
-            if (renderers.Length > 0)
-            {
-                Bounds bounds = renderers[0].bounds;
-                for (int i = 1; i < renderers.Length; i++)
-                {
-                    bounds.Encapsulate(renderers[i].bounds);
-                }
-                localCenter = bearInstance.transform.InverseTransformPoint(bounds.center);
-            }
-
-            // Tạo pivot helper để căn chỉnh và co giãn chuẩn xác
-            GameObject pivotHelper = new GameObject("_BearPivotHelper");
-            pivotHelper.transform.SetParent(equippedBearVisual.transform, false);
-            pivotHelper.transform.localPosition = bearPositionOffset;
-            pivotHelper.transform.localRotation = Quaternion.Euler(bearRotationOffset);
-            pivotHelper.transform.localScale = Vector3.zero;
+            // Gắn trực tiếp gấu bông làm con của visual cầm tay theo đúng offset cấu hình
+            bearInstance.transform.SetParent(equippedBearVisual.transform, false);
+            bearInstance.transform.localPosition = bearPositionOffset;
+            bearInstance.transform.localRotation = Quaternion.Euler(bearRotationOffset);
             
-            // Gắn gấu bông làm con của helper và dịch chuyển tâm của nó về gốc tọa độ của helper
-            bearInstance.transform.SetParent(pivotHelper.transform, false);
-            bearInstance.transform.localPosition = -localCenter;
-            bearInstance.transform.localRotation = Quaternion.identity;
-            bearInstance.transform.localScale = Vector3.one; // Giữ scale gốc của prefab
+            bearOriginalScale = teddyBearPrefab.transform.localScale;
+            bearInstance.transform.localScale = Vector3.zero; // Bắt đầu từ 0 để phình to dần
             
-            bearOriginalScale = Vector3.one; // Vì co giãn trên pivotHelper nên scale gốc là 1
-            bearInstanceForScale = pivotHelper;
-            
+            bearInstanceForScale = bearInstance;
             bearSphere = null;
 
             // Tạo Point Light phụ để chiếu sáng gấu bông
