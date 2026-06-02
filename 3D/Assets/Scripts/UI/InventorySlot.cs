@@ -153,6 +153,17 @@ namespace GameUI
                 {
                     iconImage.sprite = item.itemIcon;
                     iconImage.gameObject.SetActive(true);
+                    
+                    // Đảm bảo icon nằm gọn bên trong ô, không bị tràn hay méo hình
+                    iconImage.preserveAspect = true;
+                    RectTransform iconRt = iconImage.GetComponent<RectTransform>();
+                    if (iconRt != null)
+                    {
+                        iconRt.anchorMin = new Vector2(0.1f, 0.1f);
+                        iconRt.anchorMax = new Vector2(0.9f, 0.9f);
+                        iconRt.offsetMin = Vector2.zero;
+                        iconRt.offsetMax = Vector2.zero;
+                    }
                 }
                 // Ưu tiên 2: Dùng Prefab (Dự phòng nếu không có Icon 2D)
                 else if (item.itemPrefab != null)

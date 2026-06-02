@@ -18,11 +18,11 @@ public class PlayerHandheldManager : MonoBehaviour
     [Tooltip("Prefab của gấu bông (Voodoo Doll) để hiển thị trên tay người chơi")]
     public GameObject teddyBearPrefab;
     [Tooltip("Vị trí hiển thị của gấu bông so với Camera")]
-    public Vector3 bearPositionOffset = new Vector3(0.35f, -0.28f, 0.48f);
+    public Vector3 bearPositionOffset = new Vector3(0.2f, -0.22f, 0.35f);
     [Tooltip("Góc xoay của gấu bông so với Camera")]
-    public Vector3 bearRotationOffset = new Vector3(0f, 180f, 0f);
+    public Vector3 bearRotationOffset = new Vector3(0f, 210f, 0f);
     [Tooltip("Tỷ lệ thu phóng (Scale) mong muốn của gấu bông khi trang bị")]
-    public float bearScaleMultiplier = 1.0f;
+    public float bearScaleMultiplier = 0.08f;
 
     [Header("Âm thanh Bật/Tắt (Tùy chọn)")]
     [Tooltip("Âm thanh sạc năng lượng khi bật hào quang")]
@@ -63,6 +63,15 @@ public class PlayerHandheldManager : MonoBehaviour
 
     private void Start()
     {
+        // Tự động tối ưu hóa kích thước và góc quay nếu giá trị scale cũ bị giữ lại trong Unity Editor
+        if (teddyBearPrefab != null && bearScaleMultiplier == 1.0f)
+        {
+            bearScaleMultiplier = 0.08f;
+            bearPositionOffset = new Vector3(0.2f, -0.22f, 0.35f);
+            bearRotationOffset = new Vector3(0f, 210f, 0f);
+            Debug.Log("[PlayerHandheldManager] Đã tự động tối ưu cấu hình hiển thị của gấu bông 3D về tỷ lệ 0.08f!");
+        }
+
         // Đăng ký sự kiện thay đổi trạng thái trang bị túi đồ
         InventoryManager.OnEquippedStateChanged += RefreshEquippedVisual;
         RefreshEquippedVisual();
